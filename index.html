@@ -305,6 +305,88 @@ textarea.form-control{min-height:70px;resize:vertical;line-height:1.5}
 .ok-panel p{font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:6px}
 .track-code{font-family:monospace;font-size:15px;font-weight:600;background:var(--surface-1);border:1px dashed var(--border-strong);border-radius:8px;padding:8px 14px;display:inline-block;margin:6px 0 16px;color:var(--blue)}
 
+/* ══ LOGO CONTAINER — dark backdrop so the Homeland knot reads well on light UI ══ */
+.brand-link .brand-mark,
+.sidebar-logo .icon,
+.land-brand .mark{background:#0a0908;border-radius:50%;overflow:hidden;padding:3px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.brand-link .brand-mark img,
+.sidebar-logo .icon img,
+.land-brand .mark img{width:100%;height:100%;object-fit:contain;display:block}
+html.dark .brand-link .brand-mark,
+html.dark .sidebar-logo .icon,
+html.dark .land-brand .mark{background:#0a0908;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+
+/* ══ MOBILE / RESPONSIVE ══ */
+.mobile-nav-btn{display:none}
+.sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99}
+.sidebar-backdrop.open{display:block}
+@media (max-width:960px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .qa-grid{grid-template-columns:repeat(2,1fr)}
+  .report-grid{grid-template-columns:1fr}
+  .change-columns{grid-template-columns:1fr 1fr}
+}
+@media (max-width:768px){
+  .app{position:relative}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;transform:translateX(-100%);transition:transform .25s ease;z-index:100;box-shadow:2px 0 20px rgba(0,0,0,0)}
+  .sidebar.open{transform:translateX(0);box-shadow:4px 0 30px rgba(0,0,0,.25)}
+  .mobile-nav-btn{display:flex;position:fixed;top:9px;left:10px;z-index:60;width:40px;height:40px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:10px;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.15);color:var(--text-primary)}
+  .mobile-nav-btn i{font-size:20px}
+  .sync-bar{padding-left:60px;font-size:11px}
+  .sync-bar .sync-actions{margin-left:auto}
+  .topbar{padding:12px 14px 12px 60px;flex-wrap:wrap}
+  .topbar h1{font-size:16px;flex:1 0 100%;order:-1;margin-bottom:2px}
+  .content{padding:14px}
+  .form-row, .form-row.three{grid-template-columns:1fr}
+  .detail-panel{position:fixed !important;top:0;bottom:0;right:0;left:0 !important;width:100% !important;z-index:101;border-left:none !important}
+  .detail-panel.hidden{transform:translateX(100%);width:100% !important}
+  .modal-overlay{padding:0;align-items:flex-end}
+  .modal, .modal.wide{width:100% !important;max-width:100% !important;max-height:95vh;border-radius:14px 14px 0 0;margin:0}
+  .search-wrap{margin-left:0;width:100%;order:99}
+  .search-wrap input{width:100%;flex:1}
+  .filter-row{gap:5px}
+  .chip{padding:5px 10px;font-size:11px}
+  .stats-grid{gap:8px}
+  .stat-card{padding:10px 12px}
+  .stat-value{font-size:22px}
+  .table-wrap{overflow-x:auto}
+  table{min-width:520px}
+  .change-columns{grid-template-columns:1fr;gap:10px}
+  .team-grid{grid-template-columns:1fr}
+  .page-topbar{padding:16px 18px}
+  .page-topbar .brand-name{font-size:15px}
+  .auth-card{max-width:100%}
+  .auth-body{padding:18px 20px 22px}
+  .auth-head{padding:20px 22px 14px}
+  .land-hero{padding:20px 18px 30px;gap:24px}
+  .land-h1{font-size:32px}
+  .land-visual-card{max-width:340px;padding:26px}
+  .land-badge{right:12px;bottom:-14px;padding:10px 14px}
+  .land-badge .bs{font-size:10px}
+  .rd-header svg{width:38px !important;height:38px !important}
+}
+@media (max-width:480px){
+  .stats-grid{grid-template-columns:1fr;gap:8px}
+  .qa-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  th, td{padding:7px 8px;font-size:11px}
+  .btn{padding:7px 10px;font-size:11px}
+  .btn i{font-size:12px}
+  .land-h1{font-size:26px}
+  .land-lead{font-size:15px}
+  .land-copy p{font-size:13px}
+  .land-nav{padding:14px 14px;flex-wrap:wrap;gap:8px}
+  .land-nav-actions{width:100%;justify-content:flex-end;order:2}
+  .land-brand{order:1}
+  .land-btn{padding:8px 14px;font-size:12px}
+  .land-visual-card{padding:20px;max-width:280px}
+  .filter-row{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}
+  .chip{flex-shrink:0}
+}
+
+/* Loading splash dot */
+.loading-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(.9)}50%{opacity:1;transform:scale(1.15)}}
+
 /* ══ PRINT — for "Download PDF" via browser's Save-as-PDF ══ */
 @media print{
   @page{margin:14mm;size:A4}
@@ -438,6 +520,17 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
   </defs>
 </svg>
 
+<!-- ════════════════════════ LOADING SPLASH (avoids landing-flash on refresh) ═════════ -->
+<div class="screen" id="screen-loading" style="background:var(--surface-0);align-items:center;justify-content:center">
+  <div style="text-align:center">
+    <div style="width:76px;height:76px;background:#0a0908;border-radius:50%;padding:10px;margin:0 auto 20px;box-shadow:0 6px 24px rgba(0,0,0,.18)">
+      <img src="Logo.png" alt="Homeland" style="width:100%;height:100%;object-fit:contain;display:block">
+    </div>
+    <div style="font-size:16px;font-weight:600;color:var(--text-primary)">Homeland <span style="color:#d4a017">Helpdesk</span></div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:6px;display:flex;align-items:center;justify-content:center;gap:6px"><span class="loading-dot"></span> Loading your dashboard…</div>
+  </div>
+</div>
+
 <!-- ════════════════════════ LANDING PAGE ════════════════════════ -->
 <div class="screen active" id="screen-landing">
   <div class="landing-wrap">
@@ -486,10 +579,11 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
   </div>
   <div class="auth-card">
     <div class="auth-head">
-      <h1>Sign in</h1>
-      <div class="sub">Access your dashboard by role</div>
+      <h1 id="login-title">Sign in</h1>
+      <div class="sub" id="login-sub">Access your dashboard</div>
     </div>
     <div class="auth-body">
+      <div id="login-mode-badge" style="display:none;margin-bottom:12px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;text-align:center"></div>
       <div class="auth-error" id="login-error"><i class="ti ti-alert-circle"></i><span id="login-error-msg"></span></div>
       <div class="form-group"><label class="form-label">Username or Employee ID</label>
         <input class="form-control" id="login-user" placeholder="Your username or ID" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
@@ -528,10 +622,22 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
           <input class="form-control" id="cp-email" type="email" placeholder="you@homelandgroup.org"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Department</label>
-          <select class="form-control" id="cp-dept"><option>IT</option><option>HR</option><option>Finance</option><option>Operations</option><option>Management</option><option>Construction</option><option>Security</option></select></div>
-        <div class="form-group"><label class="form-label">Priority</label>
+        <div class="form-group"><label class="form-label">Query type *</label>
+          <select class="form-control" id="cp-type">
+            <option value="complaint">Complaint</option>
+            <option value="incident">Incident</option>
+            <option value="request">Service request</option>
+            <option value="change">Change request</option>
+            <option value="problem">Problem</option>
+          </select></div>
+        <div class="form-group"><label class="form-label">Department *</label>
+          <select class="form-control" id="cp-dept"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Priority *</label>
           <select class="form-control" id="cp-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="critical">Critical — urgent</option></select></div>
+        <div class="form-group"><label class="form-label">&nbsp;</label>
+          <div style="font-size:11px;color:var(--text-muted);padding-top:9px"><i class="ti ti-info-circle"></i> Your query will go to the department's manager for review.</div></div>
       </div>
       <div class="form-group"><label class="form-label">Subject *</label>
         <input class="form-control" id="cp-title" placeholder="Brief summary of your issue…"></div>
@@ -558,6 +664,8 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
 
 <!-- ════════════════════════ MAIN APP ════════════════════════ -->
 <div class="screen" id="screen-app" style="padding:0;display:none">
+<button class="mobile-nav-btn" onclick="toggleSidebar()" aria-label="Menu"><i class="ti ti-menu-2"></i></button>
+<div class="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
 <div class="app" style="width:100%">
 
   <!-- Sidebar -->
@@ -742,6 +850,15 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
               <div class="detail-row"><span class="lbl">Role</span><span id="set-role"></span></div>
               <div class="detail-row"><span class="lbl">Department</span><span id="set-dept"></span></div>
             </div>
+            <div class="settings-card" id="set-departments-card" style="display:none">
+              <h3><i class="ti ti-building" style="color:var(--blue)"></i> Departments</h3>
+              <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px">Manage the list of departments shown across the app — on the public complaint form, in the new-query dialog, in user creation, and in reports. When a complaint is submitted for a department, it auto-routes to that department's Head (Manager) for review.</p>
+              <div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <input class="form-control" id="new-dept-name" placeholder="New department name…" style="flex:1;min-width:180px" onkeydown="if(event.key==='Enter')addDepartment()">
+                <button class="btn primary" onclick="addDepartment()"><i class="ti ti-plus"></i> Add department</button>
+              </div>
+            </div>
             <div class="settings-card">
               <h3><i class="ti ti-database" style="color:var(--blue)"></i> Where is my data stored?</h3>
               <div style="margin-bottom:12px">Current mode: <span id="storage-state"></span></div>
@@ -853,7 +970,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE hg_state;</code>
         <div class="form-group"><label class="form-label">Requester name</label>
           <input class="form-control" id="f-req" placeholder="Full name"></div>
         <div class="form-group"><label class="form-label">Department</label>
-          <select class="form-control" id="f-dept"><option>IT</option><option>HR</option><option>Finance</option><option>Operations</option><option>Management</option><option>Construction</option><option>Security</option></select></div>
+          <select class="form-control" id="f-dept"></select></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Assign to</label>
@@ -928,7 +1045,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE hg_state;</code>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Password *</label><input class="form-control" id="us-pass" placeholder="Set a password"></div>
         <div class="form-group"><label class="form-label">Department</label>
-          <select class="form-control" id="us-dept"><option>IT</option><option>HR</option><option>Finance</option><option>Operations</option><option>Management</option><option>Construction</option><option>Security</option></select></div>
+          <select class="form-control" id="us-dept"></select></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Role *</label>
@@ -1019,8 +1136,18 @@ function seedDB(){
       {id:'U-ADMIN', username:'SA261', password:'Homeland@77', name:'Vivek', role:'superadmin', dept:'Administration', managerId:null}
     ],
     tickets:[],
+    departments:['Administration','IT','HR','Finance','Operations','Management','Construction','Security'],
     seq:1000
   };
+}
+// Defensive: any older data blob that predates `departments` gets a default list
+function ensureDefaults(){
+  if(!db) return;
+  if(!Array.isArray(db.departments) || !db.departments.length){
+    db.departments=['Administration','IT','HR','Finance','Operations','Management','Construction','Security'];
+  }
+  if(!Array.isArray(db.users)) db.users=[];
+  if(!Array.isArray(db.tickets)) db.tickets=[];
 }
 
 // ─── Persistence — Supabase (shared) if configured, else localStorage ───
@@ -1038,7 +1165,7 @@ function initStorage(){
             useSupa=false; return loadLocal();
           }
           if(res.data && res.data.data && res.data.data.users && res.data.data.users.length){
-            db = res.data.data;
+            db = res.data.data; ensureDefaults();
           } else {
             // First-time init — seed the backend
             db = seedDB();
@@ -1049,7 +1176,7 @@ function initStorage(){
           // Realtime — pull in updates from other devices
           supa.channel('hg_state_ch').on('postgres_changes',{event:'*',schema:'public',table:'hg_state'}, function(payload){
             if(!payload.new || !payload.new.data)return;
-            db = payload.new.data;
+            db = payload.new.data; ensureDefaults();
             if(me){
               var still = db.users.find(function(u){return u.id===me.id;});
               if(still){ me=still; if(document.getElementById('screen-app').style.display==='block'){refreshCurrent();if(activeTicket){var t=db.tickets.find(function(x){return x.id===activeTicket.id;}); if(t)openDetail(t.id); else closeDetail();}} }
@@ -1069,7 +1196,7 @@ function initStorage(){
   return Promise.resolve();
 }
 function loadLocal(){
-  try{ var raw=localStorage.getItem(DB_KEY); if(raw){ db=JSON.parse(raw); return; } }catch(e){}
+  try{ var raw=localStorage.getItem(DB_KEY); if(raw){ db=JSON.parse(raw); ensureDefaults(); return; } }catch(e){}
   db=seedDB(); saveDB();
 }
 function saveDB(){
@@ -1090,14 +1217,29 @@ function userById(id){ return db.users.find(function(u){return u.id===id;})||nul
 function userName(id){ var u=userById(id); return u?u.name:'—'; }
 function usersOfManager(mid){ return db.users.filter(function(u){return u.role==='user'&&u.managerId===mid;}); }
 function initials(name){ return (name||'?').split(/\s+/).map(function(w){return w[0];}).join('').slice(0,2).toUpperCase(); }
+// Populate any <select> with the current departments list
+function fillDeptSelect(selectId, selectedVal){
+  var sel=document.getElementById(selectId); if(!sel)return;
+  var list=(db&&db.departments)||[];
+  sel.innerHTML=list.map(function(d){return '<option value="'+esc(d)+'"'+(d===selectedVal?' selected':'')+'>'+esc(d)+'</option>';}).join('');
+  if(selectedVal && list.indexOf(selectedVal)===-1){ sel.insertAdjacentHTML('afterbegin','<option value="'+esc(selectedVal)+'" selected>'+esc(selectedVal)+' (removed)</option>'); }
+}
+// Find the manager for a given department (used to auto-route complaints)
+function deptManager(deptName){ return db.users.find(function(u){return u.role==='manager' && u.dept===deptName;}) || null; }
 
-// Tickets visible to the current role
+// Tickets visible to the current role.
+//  ▸ Super Admin — everything
+//  ▸ Manager     — any query in their DEPARTMENT (plus direct-report assignments
+//                  and things explicitly routed to them)
+//  ▸ User        — only queries assigned to them
 function visibleTickets(){
   if(me.role==='superadmin') return db.tickets.slice();
   if(me.role==='manager'){
     var myUserIds=usersOfManager(me.id).map(function(u){return u.id;});
     return db.tickets.filter(function(t){
-      return t.managerId===me.id || (t.asgn&&myUserIds.indexOf(t.asgn)>-1) || (!t.asgn && t.source==='complaint');
+      return t.dept===me.dept                                // whole department feeds this manager
+          || t.managerId===me.id                             // explicitly under me
+          || (t.asgn && myUserIds.indexOf(t.asgn)>-1);       // assigned to one of my direct reports
     });
   }
   // user
@@ -1130,11 +1272,12 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 //  AUTH
 // ═══════════════════════════════════════════════════════
 function showScreen(name){
-  ['landing','login','complaint','app'].forEach(function(s){
+  ['loading','landing','login','complaint','app'].forEach(function(s){
     var el=document.getElementById('screen-'+s); if(!el)return;
     el.classList.toggle('active', s===name);
     el.style.display = (s===name)?(s==='app'?'block':'flex'):'none';
   });
+  if(name==='complaint' && db) fillDeptSelect('cp-dept');  // load current dept list
 }
 // Clicking the top-left brand: signed-in users go to their dashboard, everyone else to the landing.
 function goHome(){
@@ -1143,33 +1286,57 @@ function goHome(){
   showScreen('landing');
 }
 
-// Coming from landing → login. Admin variant pre-fills the admin credential for one-click demo.
+// Which login gate the user came in through — enforced at doLogin()
+var loginMode = 'user';   // 'admin' → only Super Admins allowed · 'user' → only Managers & Users
 function goLoginAs(kind){
+  loginMode = (kind==='admin') ? 'admin' : 'user';
   showScreen('login');
+  // Update the login screen chrome to make it obvious which gate you're at
+  var title = document.getElementById('login-title');
+  var sub   = document.getElementById('login-sub');
+  var badge = document.getElementById('login-mode-badge');
+  if(loginMode==='admin'){
+    if(title) title.textContent = 'Admin Login';
+    if(sub)   sub.textContent   = 'For Super Admins only';
+    if(badge){ badge.style.display='block'; badge.style.background='var(--purple-bg)'; badge.style.color='var(--purple-text)'; badge.innerHTML='<i class="ti ti-shield-lock"></i> Super Admin access only'; }
+  } else {
+    if(title) title.textContent = 'User Login';
+    if(sub)   sub.textContent   = 'For Managers and Users';
+    if(badge){ badge.style.display='block'; badge.style.background='var(--blue-bg)'; badge.style.color='var(--blue-text)'; badge.innerHTML='<i class="ti ti-user"></i> Manager / User access'; }
+  }
+  // Clear form for a fresh login
   setTimeout(function(){
-    if(kind==='admin'){
-      var u=db.users.find(function(x){return x.role==='superadmin';});
-      if(u){document.getElementById('login-user').value=u.username;document.getElementById('login-pass').focus();}
-    } else {
-      document.getElementById('login-user').value='';
-      document.getElementById('login-pass').value='';
-      document.getElementById('login-user').focus();
-    }
+    document.getElementById('login-user').value='';
+    document.getElementById('login-pass').value='';
+    document.getElementById('login-error').classList.remove('show');
+    document.getElementById('login-user').focus();
   },50);
 }
 
 function doLogin(){
   var u=document.getElementById('login-user').value.trim();
   var p=document.getElementById('login-pass').value;
+  var err=document.getElementById('login-error');
+  var errMsg=document.getElementById('login-error-msg');
+
   // Match on username OR display name (so admin can enter either "SA261" or "Vivek")
   var found=db.users.find(function(x){
     return (x.username.toLowerCase()===u.toLowerCase() || x.name.toLowerCase()===u.toLowerCase()) && x.password===p;
   });
-  var err=document.getElementById('login-error');
   if(!found){
-    document.getElementById('login-error-msg').textContent='Invalid username or password.';
+    errMsg.textContent='Invalid username or password.';
     err.classList.add('show'); return;
   }
+  // Enforce role vs the login gate they came through
+  if(loginMode==='admin' && found.role!=='superadmin'){
+    errMsg.innerHTML='This is not a Super Admin account. Please use <strong>User Login</strong> instead.';
+    err.classList.add('show'); return;
+  }
+  if(loginMode==='user' && found.role==='superadmin'){
+    errMsg.innerHTML='This is a Super Admin account. Please use <strong>Admin Login</strong> instead.';
+    err.classList.add('show'); return;
+  }
+
   err.classList.remove('show');
   me=found; localStorage.setItem(SESSION_KEY, me.id);
   document.getElementById('login-pass').value='';
@@ -1191,14 +1358,18 @@ function submitComplaint(){
   var email=document.getElementById('cp-email').value.trim();
   var title=document.getElementById('cp-title').value.trim();
   var desc=document.getElementById('cp-desc').value.trim();
+  var qtype=document.getElementById('cp-type').value;
+  var dept=document.getElementById('cp-dept').value;
   if(!name||!email||!title||!desc){ toast('Please fill in all required fields','error'); return; }
+  var mgr=deptManager(dept);
   var now=new Date().toISOString();
   var t={
-    id:'TKT-'+(++db.seq), type:'complaint', pri:document.getElementById('cp-priority').value,
-    title:title, desc:desc, req:name, reqEmail:email, dept:document.getElementById('cp-dept').value,
-    asgn:null, managerId:null, st:'open', source:'complaint', created:now, updated:now,
-    log:[{type:'created', msg:'Complaint submitted by '+name+' ('+email+')', user:name, at:now}]
+    id:'TKT-'+(++db.seq), type:qtype, pri:document.getElementById('cp-priority').value,
+    title:title, desc:desc, req:name, reqEmail:email, dept:dept,
+    asgn:null, managerId: mgr?mgr.id:null, st:'open', source:'complaint', created:now, updated:now,
+    log:[{type:'created', msg:(qtype==='complaint'?'Complaint':qtype.charAt(0).toUpperCase()+qtype.slice(1))+' submitted by '+name+' ('+email+') for '+dept+' department', user:name, at:now}]
   };
+  if(mgr) t.log.push({type:'route', msg:'Auto-routed to '+mgr.name+' (Head of '+dept+')', user:'System', at:now});
   db.tickets.push(t); saveDB();
   document.getElementById('cp-track').textContent=t.id;
   document.getElementById('complaint-form-wrap').style.display='none';
@@ -1207,6 +1378,8 @@ function submitComplaint(){
 function resetComplaint(){
   ['cp-name','cp-email','cp-title','cp-desc'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('cp-priority').value='medium';
+  document.getElementById('cp-type').value='complaint';
+  fillDeptSelect('cp-dept');
   document.getElementById('complaint-form-wrap').style.display='block';
   document.getElementById('complaint-success').style.display='none';
 }
@@ -1268,12 +1441,20 @@ function nav(v){
   });
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.toggle('active', n.getAttribute('data-view')===v);});
   closeDetail();
+  toggleSidebar(false);  // auto-close the mobile drawer after navigating
   if(v==='dashboard')renderDashboard();
   if(v==='tickets')renderTickets();
   if(v==='team')renderTeam();
   if(v==='users')renderUsers();
   if(v==='reports')renderReports();
   if(v==='settings')renderSettings();
+}
+function toggleSidebar(state){
+  var sb=document.querySelector('.sidebar'); if(!sb)return;
+  var bd=document.querySelector('.sidebar-backdrop');
+  var open = (state===undefined)?!sb.classList.contains('open'):!!state;
+  sb.classList.toggle('open', open);
+  if(bd) bd.classList.toggle('open', open);
 }
 
 function gotoTicketsFilter(f){
@@ -1950,6 +2131,40 @@ function renderSettings(){
   set('set-name',me.name); set('set-user','@'+me.username); set('set-dept',me.dept);
   document.getElementById('set-role').innerHTML=roleBadge(me.role);
   updateStorageIndicator();
+  var deptCard=document.getElementById('set-departments-card');
+  if(deptCard) deptCard.style.display = (me.role==='superadmin')?'block':'none';
+  renderDepartmentChips();
+}
+function renderDepartmentChips(){
+  var wrap=document.getElementById('dept-chips'); if(!wrap)return;
+  var list=(db.departments||[]);
+  if(!list.length){ wrap.innerHTML='<span style="font-size:12px;color:var(--text-muted)">No departments yet — add one below.</span>'; return; }
+  wrap.innerHTML=list.map(function(d){
+    var mgr=deptManager(d);
+    var meta=mgr?('Head: '+esc(mgr.name)):'No head assigned';
+    var canRemove=(me.role==='superadmin');
+    return '<span class="badge medium" style="padding:6px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px" title="'+meta+'"><i class="ti ti-building"></i>'+esc(d)+(canRemove?' <button class="btn xs danger" style="padding:1px 5px;margin-left:2px" onclick="removeDepartment(\''+esc(d).replace(/\x27/g,'&#39;')+'\')" title="Remove"><i class="ti ti-x"></i></button>':'')+'</span>';
+  }).join('');
+}
+function addDepartment(){
+  if(me.role!=='superadmin'){toast('Only Super Admin can manage departments','error');return;}
+  var name=document.getElementById('new-dept-name').value.trim();
+  if(!name){toast('Enter a department name','error');return;}
+  if(!db.departments) db.departments=[];
+  if(db.departments.some(function(d){return d.toLowerCase()===name.toLowerCase();})){toast('That department already exists','error');return;}
+  db.departments.push(name); saveDB();
+  document.getElementById('new-dept-name').value='';
+  renderDepartmentChips(); toast('Added department "'+name+'"','success');
+}
+function removeDepartment(name){
+  if(me.role!=='superadmin'){toast('Only Super Admin can manage departments','error');return;}
+  var usersHere=db.users.filter(function(u){return u.dept===name;}).length;
+  var ticketsHere=db.tickets.filter(function(t){return t.dept===name;}).length;
+  var msg='Remove department "'+name+'"?';
+  if(usersHere||ticketsHere) msg+='\n\nThis department is referenced by '+usersHere+' user(s) and '+ticketsHere+' query/queries. They will keep the label but you won\'t be able to pick "'+name+'" for new items. Continue?';
+  if(!confirm(msg))return;
+  db.departments=(db.departments||[]).filter(function(d){return d!==name;});
+  saveDB(); renderDepartmentChips(); toast('Removed "'+name+'"','info');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2063,7 +2278,7 @@ function openNewTicketModal(type){
   document.getElementById('f-type').value=(typeof type==='string'?type:'incident');
   document.getElementById('f-priority').value='medium';
   document.getElementById('f-status').value='open';
-  document.getElementById('f-dept').value=me.dept;
+  fillDeptSelect('f-dept', me.dept);
   fillAssignSelect('f-asgn','');
   document.getElementById('ticket-modal').style.display='flex';
 }
@@ -2078,7 +2293,7 @@ function openEditTicketModal(id){
   document.getElementById('f-title').value=t.title;
   document.getElementById('f-desc').value=t.desc;
   document.getElementById('f-req').value=t.req;
-  document.getElementById('f-dept').value=t.dept;
+  fillDeptSelect('f-dept', t.dept);
   document.getElementById('f-status').value=t.st;
   fillAssignSelect('f-asgn', t.asgn||'');
   document.getElementById('ticket-modal').style.display='flex';
@@ -2179,7 +2394,7 @@ function openUserModal(id){
     document.getElementById('us-name').value=u.name;
     document.getElementById('us-username').value=u.username;
     document.getElementById('us-pass').value=u.password;
-    document.getElementById('us-dept').value=u.dept;
+    fillDeptSelect('us-dept', u.dept);
     document.getElementById('us-role').value=u.role;
     fillManagerSelect(u.managerId);
   } else {
@@ -2187,7 +2402,7 @@ function openUserModal(id){
     document.getElementById('user-modal-title').textContent='Create user';
     document.getElementById('user-modal-save').innerHTML='<i class="ti ti-user-plus"></i> Create user';
     ['us-name','us-username','us-pass'].forEach(function(x){document.getElementById(x).value='';});
-    document.getElementById('us-dept').value='IT';
+    fillDeptSelect('us-dept', (db.departments && db.departments[0]) || 'IT');
     document.getElementById('us-role').value='user';
   }
   onUserRoleChange();
@@ -2297,15 +2512,18 @@ window.addEventListener('storage',function(e){
 // ═══════════════════════════════════════════════════════
 (function init(){
   loadTheme();
-  // Storage init may be async (Supabase). Show landing immediately so user isn't staring at blank page.
-  showScreen('landing');
+  // If there's a saved session, show the loading splash (avoids the landing-page flash on refresh).
+  // Otherwise, show the landing page right away.
+  var sid=localStorage.getItem(SESSION_KEY);
+  showScreen(sid ? 'loading' : 'landing');
   Promise.resolve(initStorage()).then(function(){
-    // If a session was open, resume it
-    var sid=localStorage.getItem(SESSION_KEY);
     var found=sid && db && db.users ? db.users.find(function(u){return u.id===sid;}) : null;
     if(found){ me=found; showScreen('app'); renderApp(); }
-    // Update the storage-mode indicator visible in Settings and the sync bar
+    else { showScreen('landing'); }   // session invalid → land on landing, not loading
     updateStorageIndicator();
+  }).catch(function(err){
+    console.error('Init failed:', err);
+    showScreen('landing');
   });
 })();
 function updateStorageIndicator(){
