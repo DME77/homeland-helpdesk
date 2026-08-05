@@ -1,0 +1,2326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT HelpDesk — Homeland Group</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<!-- Supabase JS client (used only if HG_SUPABASE_URL + HG_SUPABASE_KEY are set below) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#f4f4f2;color:#1a1a18;font-size:14px}
+:root{
+  --blue:#185fa5;--blue-bg:#e6f1fb;--blue-text:#0c447c;--blue-border:#b5d4f4;
+  --green:#3b6d11;--green-bg:#eaf3de;--green-text:#27500a;--green-border:#c0dd97;
+  --amber:#854f0b;--amber-bg:#faeeda;--amber-text:#633806;--amber-border:#fac775;
+  --red:#a32d2d;--red-bg:#fcebeb;--red-text:#791f1f;--red-border:#f7c1c1;
+  --purple:#534ab7;--purple-bg:#eeedfe;--purple-text:#3c3489;--purple-border:#afa9ec;
+  --gray-bg:#f1efe8;--gray-text:#444441;--gray-border:#d3d1c7;
+  --surface-0:#f4f4f2;--surface-1:#f0eeea;--surface-2:#ffffff;
+  --border:#e0ddd6;--border-strong:#c8c5bc;
+  --text-primary:#1a1a18;--text-secondary:#6b6965;--text-muted:#a0a09a;
+  --radius:8px;
+}
+html.dark{
+  --blue:#4d9de0;--blue-bg:#0f2a45;--blue-text:#7dc4f8;--blue-border:#1e4a75;
+  --green:#6dbf4e;--green-bg:#0e2a0a;--green-text:#8fd970;--green-border:#1e5018;
+  --amber:#f0a832;--amber-bg:#2e1e00;--amber-text:#f5c96a;--amber-border:#5a3a00;
+  --red:#e05c5c;--red-bg:#2e0a0a;--red-text:#f08080;--red-border:#5a1a1a;
+  --purple:#9b92f0;--purple-bg:#1a1540;--purple-text:#bdb6ff;--purple-border:#332d80;
+  --gray-bg:#2a2a28;--gray-text:#b0afa8;--gray-border:#3a3a38;
+  --surface-0:#141413;--surface-1:#1e1e1c;--surface-2:#242422;
+  --border:#2e2e2c;--border-strong:#3e3e3c;
+  --text-primary:#f0f0ee;--text-secondary:#a8a8a2;--text-muted:#666662;
+}
+html.dark body{background:#141413;color:#f0f0ee}
+
+/* Layout */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:228px;background:var(--surface-2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;z-index:10}
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.app-body{display:flex;flex:1;overflow:hidden}
+
+/* Sidebar */
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border)}
+.logo-mark{display:flex;align-items:center;gap:9px}
+.logo-mark .icon{width:32px;height:32px;background:var(--blue-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:18px}
+.logo-mark h2{font-size:15px;font-weight:600;color:var(--text-primary)}
+.logo-mark p{font-size:11px;color:var(--text-muted);margin-top:1px}
+.nav-section-label{padding:12px 16px 4px;font-size:10px;font-weight:600;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 12px;margin:1px 8px;border-radius:var(--radius);cursor:pointer;font-size:13px;color:var(--text-secondary);transition:all .12s;user-select:none}
+.nav-item:hover{background:var(--surface-1);color:var(--text-primary)}
+.nav-item.active{background:var(--blue-bg);color:var(--blue-text);font-weight:500}
+.nav-item i{font-size:17px;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--red-bg);color:var(--red-text);font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;min-width:20px;text-align:center}
+.sidebar-footer{margin-top:auto;padding:12px;border-top:1px solid var(--border)}
+.user-row{display:flex;align-items:center;gap:8px}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--blue-bg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--blue-text);flex-shrink:0;border:1px solid var(--blue-border)}
+.avatar-name{flex:1;min-width:0}
+.avatar-name .name{font-size:12px;font-weight:500}
+.avatar-name .role{font-size:10px;color:var(--text-muted)}
+.theme-toggle{width:32px;height:32px;border-radius:50%;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;flex-shrink:0}
+.theme-toggle:hover{background:var(--surface-1);color:var(--text-primary)}
+
+/* Sync bar */
+.sync-bar{display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sync-bar.synced{background:var(--green-bg);color:var(--green-text)}
+.sync-actions{margin-left:auto;display:flex;gap:6px}
+
+/* Top bar */
+.topbar{padding:14px 20px;background:var(--surface-2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.topbar h1{font-size:17px;font-weight:600;flex:1;min-width:120px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;transition:all .12s;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-primary);font-family:inherit;line-height:1;white-space:nowrap}
+.btn:hover{background:var(--surface-1)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn.primary:hover{background:#0c447c}
+.btn.success{background:var(--green);color:#fff;border-color:var(--green)}
+.btn.success:hover{background:#2a5009}
+.btn.danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn.danger:hover{background:#7a1f1f}
+.btn.warning{background:var(--amber);color:#fff;border-color:var(--amber)}
+.btn.sm{padding:4px 8px;font-size:11px}
+.btn.xs{padding:2px 6px;font-size:10px}
+.btn.block{width:100%;justify-content:center;padding:10px}
+.btn i{font-size:14px}
+
+/* Content */
+.content{padding:18px 20px;overflow-y:auto;flex:1}
+
+/* Stats grid */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.stat-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;transition:all .15s}
+.stat-card.clickable{cursor:pointer;user-select:none}
+.stat-card.clickable:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.1);border-color:var(--border-strong)}
+.stat-card.clickable.active-filter{border-width:2px;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.stat-card.blue.active-filter{border-color:var(--blue);background:var(--blue-bg)}
+.stat-card.amber.active-filter{border-color:var(--amber);background:var(--amber-bg)}
+.stat-card.green.active-filter{border-color:var(--green);background:var(--green-bg)}
+.stat-card.red.active-filter{border-color:var(--red);background:var(--red-bg)}
+.stat-label{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:4px}
+.stat-value{font-size:28px;font-weight:600;line-height:1}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
+.stat-card.blue .stat-value{color:var(--blue)}
+.stat-card.amber .stat-value{color:var(--amber)}
+.stat-card.green .stat-value{color:var(--green)}
+.stat-card.red .stat-value{color:var(--red)}
+.stat-card.purple .stat-value{color:var(--purple)}
+
+/* Table */
+.table-wrap{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--surface-1)}
+th{padding:9px 13px;text-align:left;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 13px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.clickable:hover{background:var(--surface-1);cursor:pointer}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge.open{background:var(--blue-bg);color:var(--blue-text)}
+.badge.in-progress{background:var(--amber-bg);color:var(--amber-text)}
+.badge.resolved{background:var(--green-bg);color:var(--green-text)}
+.badge.closed{background:var(--gray-bg);color:var(--gray-text)}
+.badge.pending{background:var(--purple-bg);color:var(--purple-text)}
+.badge.approved{background:var(--green-bg);color:var(--green-text)}
+.badge.rejected{background:var(--red-bg);color:var(--red-text)}
+.badge.critical{background:var(--red-bg);color:var(--red-text)}
+.badge.high{background:var(--amber-bg);color:var(--amber-text)}
+.badge.medium{background:var(--blue-bg);color:var(--blue-text)}
+.badge.low{background:var(--gray-bg);color:var(--gray-text)}
+.badge.incident{background:var(--red-bg);color:var(--red-text)}
+.badge.change{background:var(--purple-bg);color:var(--purple-text)}
+.badge.request{background:var(--blue-bg);color:var(--blue-text)}
+.badge.problem{background:var(--amber-bg);color:var(--amber-text)}
+.badge.complaint{background:var(--red-bg);color:var(--red-text)}
+.badge.superadmin{background:var(--purple-bg);color:var(--purple-text)}
+.badge.manager{background:var(--blue-bg);color:var(--blue-text)}
+.badge.user{background:var(--gray-bg);color:var(--gray-text)}
+.badge.unassigned{background:var(--gray-bg);color:var(--gray-text)}
+
+/* Filter chips */
+.filter-row{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface-2);font-size:12px;font-weight:500;cursor:pointer;color:var(--text-secondary);transition:all .15s;user-select:none}
+.chip i{font-size:13px}
+.chip:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.10);border-color:var(--border-strong)}
+.chip.chip-all.active{background:var(--text-primary);color:var(--surface-2);border-color:var(--text-primary)}
+.chip.chip-open{border-color:var(--blue-border);color:var(--blue-text)}
+.chip.chip-open.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.chip.chip-inp{border-color:var(--amber-border);color:var(--amber-text)}
+.chip.chip-inp.active{background:var(--amber);color:#fff;border-color:var(--amber)}
+.chip.chip-res{border-color:var(--green-border);color:var(--green-text)}
+.chip.chip-res.active{background:var(--green);color:#fff;border-color:var(--green)}
+.chip.chip-cls{border-color:var(--gray-border);color:var(--gray-text)}
+.chip.chip-cls.active{background:var(--gray-text);color:#fff}
+.search-wrap{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;background:var(--surface-2);margin-left:auto}
+.search-wrap input{border:none;outline:none;background:transparent;color:var(--text-primary);font-size:13px;width:180px;font-family:inherit}
+.search-wrap i{color:var(--text-muted);font-size:15px}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
+.modal{background:var(--surface-2);border-radius:14px;width:580px;max-width:100%;max-height:92vh;overflow-y:auto;border:1px solid var(--border);box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal.wide{width:700px}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;position:sticky;top:0;background:var(--surface-2);z-index:1}
+.modal-header h3{font-size:15px;font-weight:600;flex:1}
+.modal-body{padding:18px 20px}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surface-2)}
+
+/* Form */
+.form-group{margin-bottom:12px}
+.form-label{display:block;font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.form-control{width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:var(--radius);font-size:13px;background:var(--surface-2);color:var(--text-primary);font-family:inherit;outline:none;transition:border-color .15s}
+.form-control:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(24,95,165,.1)}
+textarea.form-control{min-height:70px;resize:vertical;line-height:1.5}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+
+/* Detail panel */
+.detail-panel{width:380px;flex-shrink:0;background:var(--surface-2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s}
+.detail-panel.hidden{width:0;border-left:none;overflow:hidden}
+.detail-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:8px;flex-shrink:0}
+.detail-tid{font-size:10px;font-family:monospace;color:var(--text-muted);margin-bottom:3px}
+.detail-ttitle{font-size:14px;font-weight:600;line-height:1.3}
+.detail-scroll{overflow-y:auto;flex:1;padding:14px 16px}
+.detail-section{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.detail-section:last-child{border-bottom:none}
+.detail-section-label{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.detail-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.detail-row:last-child{border-bottom:none}
+.detail-row .lbl{color:var(--text-secondary);flex-shrink:0;margin-right:8px}
+.detail-desc{font-size:12px;color:var(--text-secondary);line-height:1.6;padding:8px 10px;background:var(--surface-1);border-radius:var(--radius)}
+
+/* Comments / Timeline */
+.timeline{display:flex;flex-direction:column;gap:10px}
+.tl-item{display:flex;gap:8px;font-size:12px}
+.tl-avatar{width:24px;height:24px;border-radius:50%;background:var(--blue-bg);color:var(--blue-text);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+.tl-bubble{background:var(--surface-1);border-radius:0 8px 8px 8px;padding:8px 10px;flex:1}
+.tl-bubble.comment{background:var(--blue-bg);border-radius:0 8px 8px 8px}
+.tl-bubble-header{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.tl-name{font-weight:600;color:var(--text-primary);font-size:11px}
+.tl-time{font-size:10px;color:var(--text-muted)}
+.tl-text{color:var(--text-secondary);line-height:1.4;font-size:12px}
+.comment-input-wrap{display:flex;gap:8px;margin-top:10px;align-items:flex-end}
+.comment-input-wrap textarea{flex:1;padding:7px 10px;border:1px solid var(--border-strong);border-radius:var(--radius);font-size:12px;background:var(--surface-2);color:var(--text-primary);font-family:inherit;outline:none;resize:none;min-height:50px;line-height:1.4}
+.comment-input-wrap textarea:focus{border-color:var(--blue)}
+
+/* AI assist */
+.ai-card{background:var(--purple-bg);border:1px solid var(--purple-border);border-radius:10px;padding:10px 12px;margin-bottom:14px}
+.ai-card-header{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--purple-text);margin-bottom:5px}
+.ai-card p{font-size:12px;color:var(--purple-text);line-height:1.5;white-space:pre-line}
+
+/* Quick action grid */
+.qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.qa-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:center;transition:all .12s;user-select:none}
+.qa-card:hover{background:var(--surface-1);border-color:var(--border-strong);transform:translateY(-1px)}
+.qa-card i{font-size:24px;display:block;margin-bottom:7px}
+.qa-card span{font-size:12px;font-weight:500;color:var(--text-secondary)}
+
+/* Team cards */
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.team-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:16px}
+.team-card-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.team-card-head .avatar{width:38px;height:38px;font-size:13px}
+.team-mini-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.team-mini{background:var(--surface-1);border-radius:8px;padding:8px;text-align:center}
+.team-mini .n{font-size:18px;font-weight:600}
+.team-mini .l{font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+
+/* Section header */
+.section-hdr{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.section-hdr h2{font-size:14px;font-weight:600;flex:1}
+
+/* Reports */
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.report-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:16px}
+.report-card h3{font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px}
+.bar-row .bar-label{width:110px;color:var(--text-secondary);text-align:right;flex-shrink:0;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;background:var(--surface-1);border-radius:4px;height:8px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.bar-row .bar-val{width:24px;font-weight:500;color:var(--text-primary)}
+
+/* Toast */
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.12);animation:slideup .2s ease;max-width:320px}
+.toast.success{border-left:3px solid var(--green)}
+.toast.error{border-left:3px solid var(--red)}
+.toast.info{border-left:3px solid var(--blue)}
+@keyframes slideup{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Settings */
+.settings-card{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:560px;margin-bottom:16px}
+.settings-card h3{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.info-box{border-radius:var(--radius);padding:12px;font-size:12px;line-height:1.7;margin-top:12px}
+.info-box.blue{background:var(--blue-bg);color:var(--blue-text)}
+.info-box.green{background:var(--green-bg);color:var(--green-text);border:1px solid var(--green-border)}
+
+/* Action btn group */
+.action-group{display:flex;gap:3px;align-items:center}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
+
+/* Empty state */
+.empty{text-align:center;padding:40px 20px;color:var(--text-muted)}
+.empty i{font-size:36px;margin-bottom:10px;display:block;opacity:.5}
+.empty p{font-size:13px}
+
+/* ══ AUTH / LANDING SCREENS ══ */
+.screen{min-height:100vh;display:none;align-items:center;justify-content:center;padding:100px 24px 40px;position:relative;background:
+  radial-gradient(1200px 600px at 100% -10%, var(--blue-bg), transparent 60%),
+  radial-gradient(1000px 500px at -10% 110%, var(--purple-bg), transparent 55%),
+  var(--surface-0)}
+.screen.active{display:flex}
+.auth-card{background:var(--surface-2);border:1px solid var(--border);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.12);width:100%;max-width:420px;overflow:hidden}
+.auth-card.wide{max-width:560px}
+.auth-head{padding:26px 28px 18px;border-bottom:1px solid var(--border)}
+.auth-brand{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.auth-brand .icon{width:42px;height:42px;background:var(--blue-bg);border-radius:11px;display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:24px}
+.auth-brand h2{font-size:17px;font-weight:600}
+.auth-brand p{font-size:11px;color:var(--text-muted);margin-top:1px}
+.auth-head h1{font-size:20px;font-weight:600;margin-bottom:4px}
+.auth-head .sub{font-size:13px;color:var(--text-secondary)}
+.auth-body{padding:22px 28px 26px}
+.auth-foot{padding:14px 28px;border-top:1px solid var(--border);font-size:12px;color:var(--text-secondary);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.link-btn{background:none;border:none;color:var(--blue);font-weight:600;cursor:pointer;font-size:12px;font-family:inherit;padding:0}
+.link-btn:hover{text-decoration:underline}
+.demo-accounts{margin-top:16px;border-top:1px dashed var(--border);padding-top:14px}
+.demo-accounts .lbl{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.demo-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;cursor:pointer;transition:all .12s;background:var(--surface-2)}
+.demo-row:hover{background:var(--surface-1);border-color:var(--border-strong)}
+.demo-row .avatar{width:26px;height:26px;font-size:10px}
+.demo-row .who{flex:1;min-width:0}
+.demo-row .who .n{font-size:12px;font-weight:600}
+.demo-row .who .c{font-size:10px;color:var(--text-muted);font-family:monospace}
+.auth-error{background:var(--red-bg);color:var(--red-text);border:1px solid var(--red-border);border-radius:8px;padding:9px 11px;font-size:12px;margin-bottom:14px;display:none;align-items:center;gap:6px}
+.auth-error.show{display:flex}
+.ok-panel{text-align:center;padding:10px 0}
+.ok-panel .big-ico{width:64px;height:64px;border-radius:50%;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 14px}
+.ok-panel h3{font-size:17px;margin-bottom:6px}
+.ok-panel p{font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:6px}
+.track-code{font-family:monospace;font-size:15px;font-weight:600;background:var(--surface-1);border:1px dashed var(--border-strong);border-radius:8px;padding:8px 14px;display:inline-block;margin:6px 0 16px;color:var(--blue)}
+
+/* ══ PRINT — for "Download PDF" via browser's Save-as-PDF ══ */
+@media print{
+  @page{margin:14mm;size:A4}
+  html.printing, html.printing body{background:#fff !important;color:#111 !important}
+  html.printing body > *:not(.printing-container){display:none !important}
+  html.printing .printing-container{display:block !important;position:static !important;inset:auto !important;padding:0 !important;background:#fff !important}
+  html.printing .modal{position:static !important;box-shadow:none !important;border:none !important;width:100% !important;max-width:none !important;max-height:none !important;overflow:visible !important;border-radius:0 !important}
+  html.printing .modal-header, html.printing .modal-footer, html.printing .no-print{display:none !important}
+  html.printing .modal-body{padding:0 !important;overflow:visible !important}
+  html.printing .stat-card{border:1px solid #ccc !important;background:#fff !important;box-shadow:none !important;color:#111 !important;page-break-inside:avoid}
+  html.printing .stat-value, html.printing .stat-card .stat-value{color:#111 !important}
+  html.printing .stat-label{color:#666 !important}
+  html.printing table{font-size:11px;page-break-inside:auto}
+  html.printing thead{background:#eee !important;display:table-header-group}
+  html.printing th, html.printing td{border:1px solid #ddd !important;color:#111 !important}
+  html.printing .badge{border:1px solid #999 !important;background:#f5f5f5 !important;color:#111 !important}
+  html.printing .table-wrap{border-color:#ccc !important}
+  html.printing .stats-grid{page-break-inside:avoid}
+}
+.print-only{display:none}
+
+/* ══ GLOBAL BRAND (top-left of every screen) ══ */
+.page-topbar{position:absolute;top:0;left:0;right:0;padding:22px 32px;display:flex;align-items:center;gap:14px;z-index:50;pointer-events:none}
+.page-topbar > *{pointer-events:auto}
+.page-topbar .brand-link{display:flex;align-items:center;gap:11px;cursor:pointer;text-decoration:none;color:var(--text-primary);transition:opacity .15s}
+.page-topbar .brand-link:hover{opacity:.75}
+.page-topbar .brand-mark{width:38px;height:38px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.page-topbar .brand-name{font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.1}
+.page-topbar .brand-name .accent{color:#d4a017}
+.page-topbar .spacer{flex:1}
+.page-topbar .top-theme{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--border-strong);color:var(--text-secondary);background:var(--surface-2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.page-topbar .top-theme:hover{background:var(--surface-1);color:var(--text-primary)}
+@media (max-width:640px){.page-topbar{padding:14px 16px}.page-topbar .brand-name{font-size:15px}}
+
+/* ══ LANDING PAGE ══ */
+:root{--land-bg:#f7f4ec;--land-ink:#151412;--land-muted:#5a544a;--land-accent:#e6b83a;--land-accent-ink:#1a1a18;--land-card:#161513;--land-card-ink:#f5eddc;--land-btn-outline:#151412;--land-nav-bg:#f7f4ec}
+html.dark{--land-bg:#0f0e0d;--land-ink:#f4ecd8;--land-muted:#a49d8f;--land-accent:#e6b83a;--land-accent-ink:#151412;--land-card:#0a0908;--land-card-ink:#f4ecd8;--land-btn-outline:#f4ecd8;--land-nav-bg:#0f0e0d}
+#screen-landing{padding:0;background:var(--land-bg);display:none;min-height:100vh;align-items:stretch;justify-content:stretch}
+#screen-landing.active{display:flex}
+.landing-wrap{width:100%;display:flex;flex-direction:column;min-height:100vh}
+.land-nav{display:flex;align-items:center;padding:22px 48px;background:var(--land-nav-bg);gap:14px}
+.land-brand{display:flex;align-items:center;gap:12px;flex:1;color:var(--land-ink);text-decoration:none}
+.land-brand .mark{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.land-brand .mark svg{width:44px;height:44px}
+.land-brand .name{font-size:22px;font-weight:700;letter-spacing:-.01em;color:var(--land-ink)}
+.land-brand .name .accent{color:var(--land-accent);font-weight:700}
+.land-nav-actions{display:flex;align-items:center;gap:10px}
+.land-btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 22px;border-radius:999px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;text-decoration:none;border:1.5px solid transparent;line-height:1;gap:6px}
+.land-btn.outline{border-color:var(--land-btn-outline);color:var(--land-ink);background:transparent}
+.land-btn.outline:hover{background:var(--land-ink);color:var(--land-bg)}
+.land-btn.dark{background:var(--land-btn-outline);color:var(--land-bg);border-color:var(--land-btn-outline)}
+.land-btn.dark:hover{opacity:.85}
+.land-btn.accent{background:var(--land-accent);color:var(--land-accent-ink);border-color:var(--land-accent);padding:14px 26px;font-size:15px;box-shadow:0 6px 18px rgba(230,184,58,.35)}
+.land-btn.accent:hover{transform:translateY(-1px);box-shadow:0 10px 22px rgba(230,184,58,.45)}
+.land-theme{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--land-btn-outline);color:var(--land-ink);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.land-theme:hover{background:var(--land-ink);color:var(--land-bg)}
+.land-hero{flex:1;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;padding:40px 64px 60px;max-width:1400px;width:100%;margin:0 auto}
+.land-copy{color:var(--land-ink)}
+.land-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;background:var(--land-bg);border:1px solid rgba(0,0,0,.08);font-size:12px;font-weight:600;color:var(--land-ink);box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:26px}
+html.dark .land-pill{border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.03)}
+.land-pill i{color:var(--land-accent);font-size:14px}
+.land-h1{font-size:56px;font-weight:700;line-height:1.05;letter-spacing:-.02em;margin-bottom:22px;color:var(--land-ink)}
+.land-h1 .u{position:relative;display:inline-block}
+.land-h1 .u::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:6px;background:var(--land-accent);z-index:-1;border-radius:2px;opacity:.9}
+.land-lead{font-size:17px;font-weight:700;color:var(--land-ink);margin-bottom:14px}
+.land-copy p{font-size:15px;color:var(--land-muted);line-height:1.65;margin-bottom:32px;max-width:520px}
+.land-visual{position:relative;display:flex;align-items:center;justify-content:center}
+.land-visual-card{background:var(--land-card);border-radius:28px;padding:60px;width:100%;max-width:520px;aspect-ratio:1/.9;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+.land-visual-card::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 50%, rgba(230,184,58,.12) 0%, transparent 60%);pointer-events:none}
+.land-visual-card::after{content:"";position:absolute;inset:14%;border:1px solid rgba(230,184,58,.15);border-radius:50%;pointer-events:none}
+.land-knot{width:70%;height:70%;color:var(--land-accent);filter:drop-shadow(0 8px 30px rgba(230,184,58,.35));position:relative;z-index:1}
+.land-badge{position:absolute;bottom:-18px;right:24px;background:var(--land-bg);border-radius:16px;padding:14px 18px;box-shadow:0 10px 30px rgba(0,0,0,.15);display:flex;align-items:flex-start;gap:12px;max-width:260px}
+html.dark .land-badge{background:#1a1815;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.land-badge .tick{width:26px;height:26px;border-radius:50%;background:var(--land-accent);color:var(--land-accent-ink);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.land-badge .bt{font-size:13px;font-weight:700;color:var(--land-ink);margin-bottom:2px}
+.land-badge .bs{font-size:11px;color:var(--land-muted);line-height:1.4}
+.land-foot{padding:18px 48px;text-align:center;font-size:12px;color:var(--land-muted);border-top:1px solid rgba(0,0,0,.06)}
+html.dark .land-foot{border-color:rgba(255,255,255,.06)}
+@media (max-width:900px){
+  .land-nav{padding:16px 20px}
+  .land-hero{grid-template-columns:1fr;padding:20px 20px 40px;gap:28px}
+  .land-h1{font-size:36px}
+  .land-visual-card{padding:36px;aspect-ratio:1/.85}
+  .land-brand .name{font-size:18px}
+  .land-btn{padding:9px 16px;font-size:13px}
+}
+</style>
+</head>
+<body>
+
+<!-- Global SVG defs — shared gold gradient for every logo instance -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="hgGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5d16a"/>
+      <stop offset=".45" stop-color="#d4a017"/>
+      <stop offset="1" stop-color="#8b6914"/>
+    </linearGradient>
+    <radialGradient id="hgGoldR" cx=".35" cy=".35" r=".75">
+      <stop offset="0" stop-color="#ffe08a"/>
+      <stop offset=".55" stop-color="#d4a017"/>
+      <stop offset="1" stop-color="#7a5a10"/>
+    </radialGradient>
+    <!-- Reusable Celtic rose-knot (best-fit SVG approximation of the Homeland mark).
+         To use your real bitmap/vector logo, drop a file named logo.png (or logo.svg)
+         into the project root — the app will use it in place of this SVG. -->
+    <symbol id="hgKnot" viewBox="0 0 100 100">
+      <g fill="none" stroke="url(#hgGold)" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Outer ring -->
+        <circle cx="50" cy="50" r="46" stroke-width="2"/>
+        <circle cx="50" cy="50" r="42" stroke-width="1" opacity=".5"/>
+        <!-- 6 interlacing petals arranged hexagonally -->
+        <g stroke-width="3.8">
+          <circle cx="50" cy="30" r="17"/>
+          <circle cx="66.7" cy="40" r="17"/>
+          <circle cx="66.7" cy="60" r="17"/>
+          <circle cx="50" cy="70" r="17"/>
+          <circle cx="33.3" cy="60" r="17"/>
+          <circle cx="33.3" cy="40" r="17"/>
+        </g>
+        <!-- Two overlapping triangles create the woven star at the centre -->
+        <g stroke-width="2.6" opacity=".9">
+          <path d="M50 26 L71 62 L29 62 Z"/>
+          <path d="M50 74 L71 38 L29 38 Z"/>
+        </g>
+        <!-- Central hub -->
+        <circle cx="50" cy="50" r="8" stroke-width="2.4"/>
+        <circle cx="50" cy="50" r="4" fill="url(#hgGoldR)" stroke="none"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ════════════════════════ LANDING PAGE ════════════════════════ -->
+<div class="screen active" id="screen-landing">
+  <div class="landing-wrap">
+    <nav class="land-nav">
+      <a class="land-brand" onclick="goHome()" style="cursor:pointer">
+        <div class="mark"><svg width="44" height="44"><use href="#hgKnot"/></svg></div>
+        <div class="name">Homeland <span class="accent">Helpdesk</span></div>
+      </a>
+      <div class="land-nav-actions">
+        <div class="land-theme" onclick="toggleTheme()" title="Toggle theme"><i class="ti ti-moon" id="theme-icon-landing" style="font-size:16px"></i></div>
+        <button class="land-btn outline" onclick="goLoginAs('user')">User Login</button>
+        <button class="land-btn dark" onclick="goLoginAs('admin')">Admin Login</button>
+      </div>
+    </nav>
+    <div class="land-hero">
+      <div class="land-copy">
+        <div class="land-pill"><i class="ti ti-shield-check"></i> Official IT &amp; Data Support Portal</div>
+        <h1 class="land-h1">Welcome to the<br>Homeland <span class="u">Helpdesk</span></h1>
+        <div class="land-lead">This is the official helpdesk for Homeland.</div>
+        <p>You can use this platform to raise questions, report issues, and get support related to dashboards, data, and reports. Our team is here to help you with anything related to your day-to-day digital and reporting requirements.</p>
+        <button class="land-btn accent" onclick="showScreen('complaint')">Raise a Complaint <i class="ti ti-arrow-right"></i></button>
+      </div>
+      <div class="land-visual">
+        <div class="land-visual-card">
+          <svg class="land-knot" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><use href="#hgKnot"/></svg>
+        </div>
+        <div class="land-badge">
+          <div class="tick"><i class="ti ti-check"></i></div>
+          <div><div class="bt">Always here to help</div><div class="bs">From dashboard glitches to data queries, submit a ticket and our team responds fast.</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="land-foot">© Homeland Group · IT &amp; Data Support</div>
+  </div>
+</div>
+
+<!-- ════════════════════════ LOGIN SCREEN ════════════════════════ -->
+<div class="screen" id="screen-login">
+  <div class="page-topbar">
+    <a class="brand-link" onclick="goHome()">
+      <div class="brand-mark"><svg width="38" height="38"><use href="#hgKnot"/></svg></div>
+      <div class="brand-name">Homeland <span class="accent">Helpdesk</span></div>
+    </a>
+    <div class="spacer"></div>
+    <div class="top-theme" onclick="toggleTheme()" title="Toggle theme"><i class="ti ti-moon" id="theme-icon-login" style="font-size:15px"></i></div>
+  </div>
+  <div class="auth-card">
+    <div class="auth-head">
+      <h1>Sign in</h1>
+      <div class="sub">Access your dashboard by role</div>
+    </div>
+    <div class="auth-body">
+      <div class="auth-error" id="login-error"><i class="ti ti-alert-circle"></i><span id="login-error-msg"></span></div>
+      <div class="form-group"><label class="form-label">Username or Employee ID</label>
+        <input class="form-control" id="login-user" placeholder="Your username or ID" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="form-group"><label class="form-label">Password</label>
+        <input class="form-control" id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn primary block" onclick="doLogin()"><i class="ti ti-login-2"></i> Sign in</button>
+      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:14px">Authorised users only. Contact your Super Admin for access.</div>
+    </div>
+    <div class="auth-foot">
+      <button class="link-btn" onclick="showScreen('landing')"><i class="ti ti-arrow-left"></i> Back to home</button>
+      <button class="link-btn" onclick="showScreen('complaint')"><i class="ti ti-message-report"></i> Raise a complaint →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ PUBLIC COMPLAINT LANDING ════════════════════════ -->
+<div class="screen" id="screen-complaint">
+  <div class="page-topbar">
+    <a class="brand-link" onclick="goHome()">
+      <div class="brand-mark"><svg width="38" height="38"><use href="#hgKnot"/></svg></div>
+      <div class="brand-name">Homeland <span class="accent">Helpdesk</span></div>
+    </a>
+    <div class="spacer"></div>
+    <div class="top-theme" onclick="toggleTheme()" title="Toggle theme"><i class="ti ti-moon" id="theme-icon-complaint" style="font-size:15px"></i></div>
+  </div>
+  <div class="auth-card wide">
+    <div class="auth-head">
+      <h1>Raise a complaint</h1>
+      <div class="sub">Submit your complaint below. Our team will review, assign it, and keep you updated.</div>
+    </div>
+    <div class="auth-body" id="complaint-form-wrap">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Your name *</label>
+          <input class="form-control" id="cp-name" placeholder="Full name"></div>
+        <div class="form-group"><label class="form-label">Email *</label>
+          <input class="form-control" id="cp-email" type="email" placeholder="you@homelandgroup.org"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Department</label>
+          <select class="form-control" id="cp-dept"><option>IT</option><option>HR</option><option>Finance</option><option>Operations</option><option>Management</option><option>Construction</option><option>Security</option></select></div>
+        <div class="form-group"><label class="form-label">Priority</label>
+          <select class="form-control" id="cp-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="critical">Critical — urgent</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Subject *</label>
+        <input class="form-control" id="cp-title" placeholder="Brief summary of your issue…"></div>
+      <div class="form-group"><label class="form-label">Describe the problem *</label>
+        <textarea class="form-control" id="cp-desc" placeholder="What happened, when it started, any error messages, what you've tried…" rows="4"></textarea></div>
+      <button class="btn primary block" onclick="submitComplaint()"><i class="ti ti-send"></i> Submit complaint</button>
+    </div>
+    <div class="auth-body" id="complaint-success" style="display:none">
+      <div class="ok-panel">
+        <div class="big-ico"><i class="ti ti-circle-check"></i></div>
+        <h3>Complaint submitted</h3>
+        <p>Thank you — your complaint has been logged and is now visible to our admin and manager team.</p>
+        <div class="track-code" id="cp-track"></div>
+        <p style="font-size:12px">Keep this reference number to follow up on your complaint.</p>
+        <button class="btn" onclick="resetComplaint()"><i class="ti ti-plus"></i> Submit another</button>
+      </div>
+    </div>
+    <div class="auth-foot">
+      <button class="link-btn" onclick="showScreen('landing')"><i class="ti ti-arrow-left"></i> Back to home</button>
+      <button class="link-btn" onclick="showScreen('login')">Sign in →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ MAIN APP ════════════════════════ -->
+<div class="screen" id="screen-app" style="padding:0;display:none">
+<div class="app" style="width:100%">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo" onclick="goHome()" style="cursor:pointer" title="Go to my dashboard">
+      <div class="logo-mark">
+        <div class="icon" style="background:transparent;padding:0"><svg width="34" height="34"><use href="#hgKnot"/></svg></div>
+        <div><h2>Homeland <span style="color:#d4a017">Helpdesk</span></h2><p>Homeland Group</p></div>
+      </div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:4px 0 8px" id="nav-container"></div>
+    <div class="sidebar-footer">
+      <div class="user-row">
+        <div class="avatar" id="sb-avatar">SG</div>
+        <div class="avatar-name"><div class="name" id="sb-name">—</div><div class="role" id="sb-role">—</div></div>
+        <div class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+          <i class="ti ti-moon" id="theme-icon" style="font-size:16px"></i>
+        </div>
+      </div>
+      <button class="btn sm block" style="margin-top:10px" onclick="logout()"><i class="ti ti-logout"></i> Sign out</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-area">
+    <div class="sync-bar synced" id="sync-bar">
+      <i class="ti ti-database"></i>
+      <span id="sync-msg">Signed in — data saved in this browser</span>
+      <div class="sync-actions">
+        <button class="btn sm success" onclick="showSheetDialog()"><i class="ti ti-table-export"></i> Export</button>
+      </div>
+    </div>
+
+    <div class="app-body">
+      <div class="main-area" id="views">
+
+        <!-- ═══ DASHBOARD ═══ -->
+        <div id="v-dashboard" class="view" style="display:flex;flex-direction:column">
+          <div class="topbar">
+            <h1 id="dash-title">Dashboard</h1>
+            <button class="btn" id="dash-newbtn" onclick="openNewTicketModal()"><i class="ti ti-plus"></i> New ticket</button>
+            <button class="btn primary" onclick="showSheetDialog()"><i class="ti ti-table-export"></i> Export</button>
+          </div>
+          <div class="content">
+            <div class="stats-grid">
+              <div class="stat-card blue clickable" onclick="gotoTicketsFilter('open')">
+                <div class="stat-label"><i class="ti ti-inbox" style="font-size:12px"></i> Open</div>
+                <div class="stat-value" id="s-open">0</div><div class="stat-sub">Awaiting action</div>
+              </div>
+              <div class="stat-card amber clickable" onclick="gotoTicketsFilter('in-progress')">
+                <div class="stat-label"><i class="ti ti-loader" style="font-size:12px"></i> In Progress</div>
+                <div class="stat-value" id="s-inp">0</div><div class="stat-sub">Being worked on</div>
+              </div>
+              <div class="stat-card green clickable" onclick="gotoTicketsFilter('resolved')">
+                <div class="stat-label"><i class="ti ti-circle-check" style="font-size:12px"></i> Resolved</div>
+                <div class="stat-value" id="s-res">0</div><div class="stat-sub">Completed</div>
+              </div>
+              <div class="stat-card red clickable" onclick="gotoTicketsFilter('critical')">
+                <div class="stat-label"><i class="ti ti-alert-triangle" style="font-size:12px"></i> Critical</div>
+                <div class="stat-value" id="s-crit">0</div><div class="stat-sub">Needs attention</div>
+              </div>
+            </div>
+            <div class="section-hdr">
+              <h2 id="dash-recent-title">Recent tickets</h2>
+              <button class="btn sm" onclick="nav('tickets')">View all <i class="ti ti-arrow-right"></i></button>
+            </div>
+            <div class="table-wrap" style="margin-bottom:20px">
+              <table><thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Priority</th><th>Status</th><th>Assigned</th><th>Age</th></tr></thead>
+              <tbody id="dash-tbody"></tbody></table>
+            </div>
+            <div id="dash-quick"></div>
+          </div>
+        </div>
+
+        <!-- ═══ TICKETS / QUERIES ═══ -->
+        <div id="v-tickets" class="view" style="display:none;flex-direction:column">
+          <div class="topbar">
+            <h1 id="tickets-title">All tickets</h1>
+            <div class="search-wrap"><i class="ti ti-search"></i><input type="text" id="search" placeholder="Search…" oninput="renderTickets()"></div>
+            <button class="btn success" onclick="showSheetDialog()"><i class="ti ti-table-export"></i> Export</button>
+            <button class="btn primary" id="tickets-newbtn" onclick="openNewTicketModal()"><i class="ti ti-plus"></i> New ticket</button>
+          </div>
+          <div class="content">
+            <div class="filter-row">
+              <div class="chip chip-all active" onclick="setFilter('all',this)"><i class="ti ti-layout-list"></i>All</div>
+              <div class="chip chip-open" onclick="setFilter('open',this)"><i class="ti ti-inbox"></i>Open</div>
+              <div class="chip chip-inp" onclick="setFilter('in-progress',this)"><i class="ti ti-loader"></i>In progress</div>
+              <div class="chip chip-res" onclick="setFilter('resolved',this)"><i class="ti ti-circle-check"></i>Resolved</div>
+              <div class="chip chip-cls" onclick="setFilter('closed',this)"><i class="ti ti-archive"></i>Closed</div>
+              <div class="chip chip-cls" id="chip-unassigned" onclick="setFilter('unassigned',this)"><i class="ti ti-user-question"></i>Unassigned</div>
+              <div class="chip chip-inc" id="chip-complaints" onclick="setFilter('complaint',this)"><i class="ti ti-message-report"></i>Public complaints <span id="chip-cp-count" style="background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:2px"></span></div>
+            </div>
+            <div class="table-wrap">
+              <table><thead><tr id="tickets-thead">
+                <th>ID</th><th>Title</th><th>Type</th><th>Priority</th><th>Status</th><th>Requester</th><th>Assigned</th><th>Age</th><th style="min-width:120px">Actions</th>
+              </tr></thead><tbody id="tkt-tbody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ MY TEAM (manager) ═══ -->
+        <div id="v-team" class="view" style="display:none;flex-direction:column">
+          <div class="topbar"><h1>My team</h1></div>
+          <div class="content"><div class="team-grid" id="team-grid"></div></div>
+        </div>
+
+        <!-- ═══ USERS (super admin) ═══ -->
+        <div id="v-users" class="view" style="display:none;flex-direction:column">
+          <div class="topbar">
+            <h1>User management</h1>
+            <button class="btn" onclick="downloadUsersCSV()"><i class="ti ti-download"></i> Download CSV</button>
+            <button class="btn primary" onclick="openUserModal()"><i class="ti ti-user-plus"></i> Create user / admin</button>
+          </div>
+          <div class="content">
+            <div class="stats-grid">
+              <div class="stat-card purple clickable" onclick="setUserFilter('role','superadmin',this)"><div class="stat-label"><i class="ti ti-shield-lock" style="font-size:12px"></i> Super admins</div><div class="stat-value" id="u-admins">0</div><div class="stat-sub">Click to filter</div></div>
+              <div class="stat-card blue clickable" onclick="setUserFilter('role','manager',this)"><div class="stat-label"><i class="ti ti-user-star" style="font-size:12px"></i> Managers</div><div class="stat-value" id="u-managers">0</div><div class="stat-sub">Heads of department</div></div>
+              <div class="stat-card green clickable" onclick="setUserFilter('role','user',this)"><div class="stat-label"><i class="ti ti-users" style="font-size:12px"></i> Users</div><div class="stat-value" id="u-users">0</div><div class="stat-sub">Downline team</div></div>
+              <div class="stat-card amber clickable" onclick="setUserFilter('role','all',this)"><div class="stat-label"><i class="ti ti-user-check" style="font-size:12px"></i> Total accounts</div><div class="stat-value" id="u-total">0</div><div class="stat-sub">Everyone</div></div>
+            </div>
+            <div class="filter-row" id="dept-filter-row"></div>
+            <div class="section-hdr"><h2 id="users-section-title">All accounts</h2></div>
+            <div class="table-wrap">
+              <table><thead><tr>
+                <th>Name</th><th>Username</th><th>Role</th><th>Department</th><th>Reports to</th><th>Open work</th><th style="min-width:140px">Actions</th>
+              </tr></thead><tbody id="users-tbody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ REPORTS ═══ -->
+        <div id="v-reports" class="view" style="display:none;flex-direction:column">
+          <div class="topbar">
+            <h1>Reports</h1>
+            <button class="btn primary" onclick="reportDrill('status','all')"><i class="ti ti-file-type-pdf"></i> Full report → PDF</button>
+          </div>
+          <div class="content">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px"><i class="ti ti-info-circle"></i> Every card and table row below is <strong>clickable</strong> — it opens a Dashboard Report you can download as a PDF.</div>
+            <div class="stats-grid">
+              <div class="stat-card blue clickable" onclick="reportDrill('status','all')"><div class="stat-label"><i class="ti ti-inbox" style="font-size:12px"></i> Total queries</div><div class="stat-value" id="r-total">0</div><div class="stat-sub">Click for PDF</div></div>
+              <div class="stat-card amber clickable" onclick="reportDrill('status','in-progress')"><div class="stat-label"><i class="ti ti-loader" style="font-size:12px"></i> In progress</div><div class="stat-value" id="r-inp">0</div><div class="stat-sub">Click for PDF</div></div>
+              <div class="stat-card green clickable" onclick="reportDrill('status','resolved')"><div class="stat-label"><i class="ti ti-circle-check" style="font-size:12px"></i> Resolved</div><div class="stat-value" id="r-done">0</div><div class="stat-sub">Click for PDF</div></div>
+              <div class="stat-card red clickable" onclick="reportDrill('status','pending')"><div class="stat-label"><i class="ti ti-alert-triangle" style="font-size:12px"></i> Pending</div><div class="stat-value" id="r-pending">0</div><div class="stat-sub">Click for PDF</div></div>
+            </div>
+            <div class="stats-grid">
+              <div class="stat-card purple clickable" onclick="reportDrill('workers','')"><div class="stat-label"><i class="ti ti-user-check" style="font-size:12px"></i> Users working</div><div class="stat-value" id="r-workers">0</div><div class="stat-sub">Users with open queries</div></div>
+              <div class="stat-card blue clickable" onclick="reportDrill('all-depts','')"><div class="stat-label"><i class="ti ti-building" style="font-size:12px"></i> Departments</div><div class="stat-value" id="r-depts">0</div><div class="stat-sub">In active use</div></div>
+              <div class="stat-card green clickable" onclick="reportDrill('status','resolved')"><div class="stat-label"><i class="ti ti-percentage" style="font-size:12px"></i> Resolution rate</div><div class="stat-value" id="r-rate">0%</div><div class="stat-sub">Click for PDF</div></div>
+              <div class="stat-card red clickable" onclick="reportDrill('critical','')"><div class="stat-label"><i class="ti ti-alert-octagon" style="font-size:12px"></i> Critical open</div><div class="stat-value" id="r-crit">0</div><div class="stat-sub">Click for PDF</div></div>
+            </div>
+
+            <div class="section-hdr"><h2>Workload by user</h2>
+              <span style="font-size:11px;color:var(--text-muted)">Click any user row → their PDF report</span>
+            </div>
+            <div class="table-wrap" style="margin-bottom:20px">
+              <table><thead><tr><th>User</th><th>Department</th><th>Manager</th><th>Open</th><th>In progress</th><th>Resolved</th><th>Total</th></tr></thead>
+              <tbody id="user-report-tbody"></tbody></table>
+            </div>
+
+            <div class="section-hdr"><h2>Cases by department</h2>
+              <span style="font-size:11px;color:var(--text-muted)">Click any department row → its PDF report</span>
+            </div>
+            <div class="table-wrap" style="margin-bottom:20px">
+              <table><thead><tr><th>Department</th><th>Head</th><th>Team size</th><th>Open</th><th>In progress</th><th>Resolved</th><th>Critical</th><th>Total</th></tr></thead>
+              <tbody id="dept-report-tbody"></tbody></table>
+            </div>
+
+            <div class="section-hdr"><h2>Breakdown charts</h2></div>
+            <div class="report-grid" id="report-body"></div>
+            <div class="info-box green" style="margin-top:20px"><strong>End note — Resolved:</strong> <span id="r-note"></span></div>
+          </div>
+        </div>
+
+        <!-- ═══ SETTINGS ═══ -->
+        <div id="v-settings" class="view" style="display:none;flex-direction:column">
+          <div class="topbar"><h1>Settings</h1></div>
+          <div class="content">
+            <div class="settings-card">
+              <h3><i class="ti ti-user-circle" style="color:var(--blue)"></i> My account</h3>
+              <div class="detail-row"><span class="lbl">Name</span><span id="set-name"></span></div>
+              <div class="detail-row"><span class="lbl">Username</span><span id="set-user"></span></div>
+              <div class="detail-row"><span class="lbl">Role</span><span id="set-role"></span></div>
+              <div class="detail-row"><span class="lbl">Department</span><span id="set-dept"></span></div>
+            </div>
+            <div class="settings-card">
+              <h3><i class="ti ti-database" style="color:var(--blue)"></i> Where is my data stored?</h3>
+              <div style="margin-bottom:12px">Current mode: <span id="storage-state"></span></div>
+              <p style="font-size:13px;color:var(--text-secondary);line-height:1.7">Once you configure <strong>Supabase</strong>, everyone using this deployed site — on any laptop, phone, or tablet — sees the same live data. It syncs in real time.</p>
+              <div class="info-box green" style="margin-top:10px">
+                <strong>How to enable shared cross-device data (one-time, ~5 minutes):</strong><br>
+                1. Create a free project at <strong>supabase.com</strong>.<br>
+                2. Open the <strong>SQL Editor</strong> and paste + run:<br>
+                <code style="display:block;white-space:pre;background:rgba(0,0,0,.06);padding:10px;border-radius:6px;margin-top:6px;font-size:11px;line-height:1.5">CREATE TABLE IF NOT EXISTS hg_state (
+  id integer PRIMARY KEY,
+  data jsonb NOT NULL DEFAULT '{}',
+  updated timestamptz DEFAULT now()
+);
+INSERT INTO hg_state (id, data) VALUES (1, '{}') ON CONFLICT DO NOTHING;
+ALTER TABLE hg_state DISABLE ROW LEVEL SECURITY;
+ALTER PUBLICATION supabase_realtime ADD TABLE hg_state;</code>
+                3. In Supabase → <strong>Settings → API</strong>, copy your <strong>Project URL</strong> and <strong>anon public key</strong>.<br>
+                4. Open <code>index.html</code>, find the block near the top of the &lt;script&gt; that reads<br>
+                <code style="background:rgba(0,0,0,.06);padding:2px 6px;border-radius:4px;font-size:11px">var HG_SUPABASE_URL = ''; var HG_SUPABASE_KEY = '';</code><br>
+                and paste your values in the quotes.<br>
+                5. Commit + push to GitHub — Vercel redeploys automatically. Everyone sees shared, live data.
+              </div>
+              <div class="info-box blue" style="margin-top:10px">
+                <strong>Local mode (default):</strong> data is saved in this browser only (key <code style="background:rgba(255,255,255,.15);padding:1px 6px;border-radius:4px;font-size:11px">hg_helpdesk_v1</code>). Fine for testing on one machine, but nothing syncs between devices.
+              </div>
+            </div>
+            <div class="settings-card" id="set-danger">
+              <h3><i class="ti ti-tool" style="color:var(--amber)"></i> Data management</h3>
+              <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Export a CSV backup of your current data, or reset the demo to its seeded state.</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Download CSV</button>
+                <button class="btn danger" onclick="resetDemo()"><i class="ti ti-refresh"></i> Reset demo data</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /views -->
+
+      <!-- Detail panel -->
+      <div class="detail-panel hidden" id="detail-panel">
+        <div class="detail-header">
+          <div style="flex:1;min-width:0">
+            <div class="detail-tid" id="dp-id"></div>
+            <div class="detail-ttitle" id="dp-title"></div>
+          </div>
+          <div style="display:flex;gap:4px" id="dp-header-actions"></div>
+        </div>
+        <div class="detail-scroll">
+          <div class="ai-card" id="dp-ai" style="display:none">
+            <div class="ai-card-header"><i class="ti ti-sparkles"></i> Suggested handling</div>
+            <p id="dp-ai-text"></p>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-label">Details</div>
+            <div class="detail-row"><span class="lbl">Status</span><span id="dp-status"></span></div>
+            <div class="detail-row"><span class="lbl">Priority</span><span id="dp-priority"></span></div>
+            <div class="detail-row"><span class="lbl">Type</span><span id="dp-type"></span></div>
+            <div class="detail-row"><span class="lbl">Requester</span><span id="dp-req"></span></div>
+            <div class="detail-row"><span class="lbl">Assigned to</span><span id="dp-asgn-wrap"></span></div>
+            <div class="detail-row"><span class="lbl">Manager</span><span id="dp-mgr"></span></div>
+            <div class="detail-row"><span class="lbl">Department</span><span id="dp-dept"></span></div>
+            <div class="detail-row"><span class="lbl">Created</span><span id="dp-created"></span></div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-label">Description</div>
+            <div class="detail-desc" id="dp-desc"></div>
+          </div>
+          <div class="detail-section" id="dp-status-section">
+            <div class="detail-section-label">Update status</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px" id="dp-status-btns"></div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-label">Comments &amp; activity</div>
+            <div class="timeline" id="dp-timeline"></div>
+            <div class="comment-input-wrap" style="margin-top:10px">
+              <textarea id="comment-input" placeholder="Add a comment or update…" rows="2"></textarea>
+              <button class="btn primary sm" onclick="addComment()"><i class="ti ti-send"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /app-body -->
+  </div><!-- /main-area -->
+</div><!-- /app -->
+</div><!-- /screen-app -->
+
+<!-- ══ NEW / EDIT TICKET MODAL ══ -->
+<div class="modal-overlay" id="ticket-modal" style="display:none" onclick="if(event.target===this)closeModal('ticket-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <i class="ti ti-ticket" style="font-size:18px;color:var(--blue)"></i>
+      <h3 id="ticket-modal-title">New ticket</h3>
+      <button class="btn sm" onclick="closeModal('ticket-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-ticket-id">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Type *</label>
+          <select class="form-control" id="f-type"><option value="incident">Incident</option><option value="request">Service request</option><option value="change">Change request</option><option value="problem">Problem</option><option value="complaint">Complaint</option></select></div>
+        <div class="form-group"><label class="form-label">Priority *</label>
+          <select class="form-control" id="f-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Title *</label>
+        <input class="form-control" id="f-title" placeholder="Brief summary of the issue…"></div>
+      <div class="form-group"><label class="form-label">Description</label>
+        <textarea class="form-control" id="f-desc" placeholder="Steps to reproduce, impact, what you've tried…"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Requester name</label>
+          <input class="form-control" id="f-req" placeholder="Full name"></div>
+        <div class="form-group"><label class="form-label">Department</label>
+          <select class="form-control" id="f-dept"><option>IT</option><option>HR</option><option>Finance</option><option>Operations</option><option>Management</option><option>Construction</option><option>Security</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Assign to</label>
+          <select class="form-control" id="f-asgn"></select></div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" id="f-status"><option value="open">Open</option><option value="in-progress">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('ticket-modal')">Cancel</button>
+      <button class="btn primary" id="ticket-modal-save" onclick="saveTicket()"><i class="ti ti-check"></i> Create ticket</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ASSIGN MODAL ══ -->
+<div class="modal-overlay" id="assign-modal" style="display:none" onclick="if(event.target===this)closeModal('assign-modal')">
+  <div class="modal" style="width:400px">
+    <div class="modal-header"><i class="ti ti-user-check" style="color:var(--blue);font-size:18px"></i><h3>Assign query</h3><button class="btn sm" onclick="closeModal('assign-modal')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="assign-ticket-id">
+      <div class="form-group"><label class="form-label">Assign to</label>
+        <select class="form-control" id="assign-to"></select></div>
+      <div class="form-group"><label class="form-label">Note (optional)</label>
+        <textarea class="form-control" id="assign-note" placeholder="Instructions or context for the assignee…" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('assign-modal')">Cancel</button>
+      <button class="btn primary" onclick="saveAssign()"><i class="ti ti-check"></i> Assign</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REPORT DRILL-DOWN MODAL (any Reports card / row → PDF) ══ -->
+<div class="modal-overlay" id="report-drill-modal" style="display:none" onclick="if(event.target===this)closeModal('report-drill-modal')">
+  <div class="modal wide" style="width:900px;max-width:96vw">
+    <div class="modal-header no-print">
+      <i class="ti ti-file-report" style="color:var(--blue);font-size:18px"></i>
+      <h3 id="rd-title">Dashboard report</h3>
+      <button class="btn primary" onclick="printReport('report-drill-modal')"><i class="ti ti-file-type-pdf"></i> Download PDF</button>
+      <button class="btn sm" onclick="closeModal('report-drill-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" id="rd-body"></div>
+  </div>
+</div>
+
+<!-- ══ TEAM DRILL-DOWN MODAL (super admin — click a manager) ══ -->
+<div class="modal-overlay" id="team-modal" style="display:none" onclick="if(event.target===this)closeModal('team-modal')">
+  <div class="modal wide">
+    <div class="modal-header"><i class="ti ti-users-group" style="color:var(--blue);font-size:18px"></i>
+      <h3 id="team-modal-title">Downline</h3>
+      <button class="btn sm" onclick="closeModal('team-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" id="team-modal-body"></div>
+  </div>
+</div>
+
+<!-- ══ USER MODAL (super admin) ══ -->
+<div class="modal-overlay" id="user-modal" style="display:none" onclick="if(event.target===this)closeModal('user-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <i class="ti ti-user-plus" style="color:var(--blue);font-size:18px"></i>
+      <h3 id="user-modal-title">Create user</h3>
+      <button class="btn sm" onclick="closeModal('user-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-user-id">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Full name *</label><input class="form-control" id="us-name" placeholder="e.g. Priya Sharma"></div>
+        <div class="form-group"><label class="form-label">Username *</label><input class="form-control" id="us-username" placeholder="e.g. priya"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Password *</label><input class="form-control" id="us-pass" placeholder="Set a password"></div>
+        <div class="form-group"><label class="form-label">Department</label>
+          <select class="form-control" id="us-dept"><option>IT</option><option>HR</option><option>Finance</option><option>Operations</option><option>Management</option><option>Construction</option><option>Security</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Role *</label>
+          <select class="form-control" id="us-role" onchange="onUserRoleChange()"><option value="user">User</option><option value="manager">Manager</option><option value="superadmin">Super Admin</option></select></div>
+        <div class="form-group" id="us-mgr-group"><label class="form-label">Reports to (manager)</label>
+          <select class="form-control" id="us-manager"></select></div>
+      </div>
+      <div class="info-box blue"><i class="ti ti-info-circle"></i> Users see only work assigned to them. Managers can assign queries to their own users and view their dashboards. Super Admins manage all accounts and see everything.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('user-modal')">Cancel</button>
+      <button class="btn primary" id="user-modal-save" onclick="saveUser()"><i class="ti ti-check"></i> Create user</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EXPORT DIALOG ══ -->
+<div class="modal-overlay" id="sheet-dialog" style="display:none" onclick="if(event.target===this)closeModal('sheet-dialog')">
+  <div class="modal" style="width:380px">
+    <div class="modal-header"><i class="ti ti-table-export" style="color:var(--green);font-size:18px"></i><h3>Export data</h3><button class="btn sm" onclick="closeModal('sheet-dialog')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6">Export the tickets currently visible to you.</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer" onclick="doExport('download')">
+          <div style="display:flex;align-items:center;gap:10px"><i class="ti ti-download" style="font-size:22px;color:var(--blue)"></i>
+            <div><div style="font-weight:600;font-size:13px">Download CSV</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">Save file to your computer</div></div></div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer" onclick="doExport('clipboard')">
+          <div style="display:flex;align-items:center;gap:10px"><i class="ti ti-clipboard" style="font-size:22px;color:var(--purple)"></i>
+            <div><div style="font-weight:600;font-size:13px">Copy to clipboard</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">Paste into Google Sheets / Excel</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  Homeland Group — Role-based IT HelpDesk
+//
+//  ▸ STORAGE:
+//    - If HG_SUPABASE_URL + HG_SUPABASE_KEY are set below, data is shared
+//      across all devices via a Supabase project (see Settings for the
+//      one-time SQL setup).
+//    - Otherwise it falls back to browser localStorage (single-device demo).
+//
+//  ▸ TO ENABLE THE SHARED BACKEND (recommended before publishing):
+//     1. Create a free Supabase project at https://supabase.com
+//     2. In the SQL Editor, run:
+//          CREATE TABLE IF NOT EXISTS hg_state (
+//            id integer PRIMARY KEY,
+//            data jsonb NOT NULL DEFAULT '{}',
+//            updated timestamptz DEFAULT now()
+//          );
+//          INSERT INTO hg_state (id, data) VALUES (1, '{}') ON CONFLICT DO NOTHING;
+//          ALTER TABLE hg_state DISABLE ROW LEVEL SECURITY;
+//          ALTER PUBLICATION supabase_realtime ADD TABLE hg_state;
+//     3. Copy your Project URL and anon public key from Settings → API
+//     4. Paste them into the two constants below, commit + push to GitHub.
+// ═══════════════════════════════════════════════════════════
+
+// ─── Supabase config — fill in to enable shared cross-device data ─────
+var HG_SUPABASE_URL = '';   // e.g. 'https://xxxxxxxx.supabase.co'
+var HG_SUPABASE_KEY = '';   // your anon public key (safe to expose)
+
+var DB_KEY='hg_helpdesk_v1', SESSION_KEY='hg_session_v1', THEME_KEY='hg_theme';
+var db=null, me=null, filter='all', activeTicket=null;
+var supa=null, useSupa=false;
+
+var AI_TIPS={
+  incident:'• Check service status and recent changes first\n• Escalate to vendor if hardware is involved\n• Notify affected users with an ETA',
+  change:'• Ensure a rollback plan is documented\n• Schedule inside an approved maintenance window\n• Get manager sign-off for high-impact changes',
+  problem:'• Root cause analysis (RCA) required\n• Link related incident tickets\n• Document a workaround for end-users',
+  request:'• Verify manager approval\n• Check license/asset pool before provisioning\n• Confirm completion with the requester',
+  complaint:'• Acknowledge the complainant quickly\n• Investigate and record findings\n• Keep the requester updated until resolved'
+};
+
+// ─── Seed data ───────────────────────────────────────────
+// Only ONE hardcoded Super Admin account. All managers and users are created
+// from inside the app (Super Admin → User Management → Create user).
+// Login accepts either "Vivek" (display name) or "SA261" (username / employee ID).
+function seedDB(){
+  return {
+    users:[
+      {id:'U-ADMIN', username:'SA261', password:'Homeland@77', name:'Vivek', role:'superadmin', dept:'Administration', managerId:null}
+    ],
+    tickets:[],
+    seq:1000
+  };
+}
+
+// ─── Persistence — Supabase (shared) if configured, else localStorage ───
+function initStorage(){
+  // If Supabase credentials are set AND the SDK loaded, use the shared backend
+  if(HG_SUPABASE_URL && HG_SUPABASE_KEY && window.supabase && window.supabase.createClient){
+    try{
+      supa = window.supabase.createClient(HG_SUPABASE_URL, HG_SUPABASE_KEY, {realtime:{params:{eventsPerSecond:10}}});
+      useSupa = true;
+      return supa.from('hg_state').select('data').eq('id',1).maybeSingle()
+        .then(function(res){
+          if(res.error){
+            console.error('Supabase load error:', res.error);
+            toast('Backend read failed: '+res.error.message,'error');
+            useSupa=false; return loadLocal();
+          }
+          if(res.data && res.data.data && res.data.data.users && res.data.data.users.length){
+            db = res.data.data;
+          } else {
+            // First-time init — seed the backend
+            db = seedDB();
+            return supa.from('hg_state').upsert({id:1, data: db, updated:new Date().toISOString()}).then(function(){});
+          }
+        })
+        .then(function(){
+          // Realtime — pull in updates from other devices
+          supa.channel('hg_state_ch').on('postgres_changes',{event:'*',schema:'public',table:'hg_state'}, function(payload){
+            if(!payload.new || !payload.new.data)return;
+            db = payload.new.data;
+            if(me){
+              var still = db.users.find(function(u){return u.id===me.id;});
+              if(still){ me=still; if(document.getElementById('screen-app').style.display==='block'){refreshCurrent();if(activeTicket){var t=db.tickets.find(function(x){return x.id===activeTicket.id;}); if(t)openDetail(t.id); else closeDetail();}} }
+              else { toast('Your account was removed by an admin','error'); logout(); }
+            }
+          }).subscribe();
+        })
+        .catch(function(err){
+          console.error('Supabase init failed:', err);
+          toast('Backend unreachable — using local storage','error');
+          useSupa=false; loadLocal();
+        });
+    }catch(e){ console.error(e); useSupa=false; loadLocal(); return Promise.resolve(); }
+  }
+  // Fallback: browser localStorage
+  loadLocal();
+  return Promise.resolve();
+}
+function loadLocal(){
+  try{ var raw=localStorage.getItem(DB_KEY); if(raw){ db=JSON.parse(raw); return; } }catch(e){}
+  db=seedDB(); saveDB();
+}
+function saveDB(){
+  if(useSupa && supa){
+    return supa.from('hg_state').update({data:db, updated:new Date().toISOString()}).eq('id',1)
+      .then(function(res){ if(res && res.error){ console.error(res.error); toast('Save failed: '+res.error.message,'error'); } });
+  }
+  try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){}
+}
+function resetDemo(){
+  if(!confirm('Reset ALL data back to just the Super Admin account? This wipes every user and query.'))return;
+  db=seedDB(); saveDB(); toast('Reset complete — only Super Admin remains','info');
+  if(me && me.role!=='superadmin'){logout();} else if(me){var still=db.users.find(function(u){return u.id===me.id;}); if(!still){logout();} else {me=still; renderApp();}}
+}
+
+// ─── Lookups ─────────────────────────────────────────────
+function userById(id){ return db.users.find(function(u){return u.id===id;})||null; }
+function userName(id){ var u=userById(id); return u?u.name:'—'; }
+function usersOfManager(mid){ return db.users.filter(function(u){return u.role==='user'&&u.managerId===mid;}); }
+function initials(name){ return (name||'?').split(/\s+/).map(function(w){return w[0];}).join('').slice(0,2).toUpperCase(); }
+
+// Tickets visible to the current role
+function visibleTickets(){
+  if(me.role==='superadmin') return db.tickets.slice();
+  if(me.role==='manager'){
+    var myUserIds=usersOfManager(me.id).map(function(u){return u.id;});
+    return db.tickets.filter(function(t){
+      return t.managerId===me.id || (t.asgn&&myUserIds.indexOf(t.asgn)>-1) || (!t.asgn && t.source==='complaint');
+    });
+  }
+  // user
+  return db.tickets.filter(function(t){return t.asgn===me.id;});
+}
+function assignableUsers(){
+  // who the current role can assign a ticket to
+  if(me.role==='superadmin'){
+    return [].concat(
+      db.users.filter(function(u){return u.role==='manager';}),
+      db.users.filter(function(u){return u.role==='user';})
+    );
+  }
+  if(me.role==='manager') return usersOfManager(me.id);
+  return [];
+}
+
+// ─── Helpers ─────────────────────────────────────────────
+function age(iso){var ms=Date.now()-new Date(iso).getTime();if(ms<3600000)return Math.max(1,Math.floor(ms/60000))+'m ago';if(ms<86400000)return Math.floor(ms/3600000)+'h ago';return Math.floor(ms/86400000)+'d ago';}
+function badge(cls,label){return '<span class="badge '+cls+'">'+esc(label)+'</span>';}
+function stBadge(s){var m={open:'Open','in-progress':'In progress',resolved:'Resolved',closed:'Closed',approved:'Approved',rejected:'Rejected',pending:'Pending'};return badge(s,m[s]||s);}
+function priBadge(p){return badge(p,p.charAt(0).toUpperCase()+p.slice(1));}
+function typeBadge(t){var m={incident:'Incident',change:'Change',request:'Request',problem:'Problem',complaint:'Complaint'};return badge(t,m[t]||t);}
+function roleBadge(r){var m={superadmin:'Super Admin',manager:'Manager',user:'User'};return badge(r,m[r]||r);}
+function asgnLabel(t){return t.asgn?esc(userName(t.asgn)):'<span class="badge unassigned">Unassigned</span>';}
+function set(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ═══════════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════════
+function showScreen(name){
+  ['landing','login','complaint','app'].forEach(function(s){
+    var el=document.getElementById('screen-'+s); if(!el)return;
+    el.classList.toggle('active', s===name);
+    el.style.display = (s===name)?(s==='app'?'block':'flex'):'none';
+  });
+}
+// Clicking the top-left brand: signed-in users go to their dashboard, everyone else to the landing.
+function goHome(){
+  if(me && document.getElementById('screen-app').style.display==='block'){ nav('dashboard'); return; }
+  if(me){ showScreen('app'); renderApp(); return; }
+  showScreen('landing');
+}
+
+// Coming from landing → login. Admin variant pre-fills the admin credential for one-click demo.
+function goLoginAs(kind){
+  showScreen('login');
+  setTimeout(function(){
+    if(kind==='admin'){
+      var u=db.users.find(function(x){return x.role==='superadmin';});
+      if(u){document.getElementById('login-user').value=u.username;document.getElementById('login-pass').focus();}
+    } else {
+      document.getElementById('login-user').value='';
+      document.getElementById('login-pass').value='';
+      document.getElementById('login-user').focus();
+    }
+  },50);
+}
+
+function doLogin(){
+  var u=document.getElementById('login-user').value.trim();
+  var p=document.getElementById('login-pass').value;
+  // Match on username OR display name (so admin can enter either "SA261" or "Vivek")
+  var found=db.users.find(function(x){
+    return (x.username.toLowerCase()===u.toLowerCase() || x.name.toLowerCase()===u.toLowerCase()) && x.password===p;
+  });
+  var err=document.getElementById('login-error');
+  if(!found){
+    document.getElementById('login-error-msg').textContent='Invalid username or password.';
+    err.classList.add('show'); return;
+  }
+  err.classList.remove('show');
+  me=found; localStorage.setItem(SESSION_KEY, me.id);
+  document.getElementById('login-pass').value='';
+  showScreen('app'); renderApp();
+  toast('Welcome, '+me.name.split(' ')[0]+'!','success');
+}
+function logout(){
+  me=null; localStorage.removeItem(SESSION_KEY);
+  closeDetail(); showScreen('landing');
+  var uEl=document.getElementById('login-user'); if(uEl)uEl.value='';
+  var pEl=document.getElementById('login-pass'); if(pEl)pEl.value='';
+}
+
+// ═══════════════════════════════════════════════════════
+//  PUBLIC COMPLAINT LANDING
+// ═══════════════════════════════════════════════════════
+function submitComplaint(){
+  var name=document.getElementById('cp-name').value.trim();
+  var email=document.getElementById('cp-email').value.trim();
+  var title=document.getElementById('cp-title').value.trim();
+  var desc=document.getElementById('cp-desc').value.trim();
+  if(!name||!email||!title||!desc){ toast('Please fill in all required fields','error'); return; }
+  var now=new Date().toISOString();
+  var t={
+    id:'TKT-'+(++db.seq), type:'complaint', pri:document.getElementById('cp-priority').value,
+    title:title, desc:desc, req:name, reqEmail:email, dept:document.getElementById('cp-dept').value,
+    asgn:null, managerId:null, st:'open', source:'complaint', created:now, updated:now,
+    log:[{type:'created', msg:'Complaint submitted by '+name+' ('+email+')', user:name, at:now}]
+  };
+  db.tickets.push(t); saveDB();
+  document.getElementById('cp-track').textContent=t.id;
+  document.getElementById('complaint-form-wrap').style.display='none';
+  document.getElementById('complaint-success').style.display='block';
+}
+function resetComplaint(){
+  ['cp-name','cp-email','cp-title','cp-desc'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('cp-priority').value='medium';
+  document.getElementById('complaint-form-wrap').style.display='block';
+  document.getElementById('complaint-success').style.display='none';
+}
+
+// ═══════════════════════════════════════════════════════
+//  NAVIGATION (role-based menus)
+// ═══════════════════════════════════════════════════════
+// One term across the app: "Queries". Complaints from the public form are queries with source='complaint'.
+var NAV_CONFIG={
+  superadmin:[
+    {sec:'Main'},
+    {v:'dashboard',  icon:'layout-dashboard', label:'Dashboard'},
+    {v:'tickets',    icon:'ticket',           label:'All Queries', badge:'open'},
+    {sec:'Administration'},
+    {v:'users',      icon:'users',            label:'User Management'},
+    {v:'reports',    icon:'chart-bar',        label:'Reports'},
+    {sec:'Config'},
+    {v:'settings',   icon:'settings',         label:'Settings'}
+  ],
+  manager:[
+    {sec:'Main'},
+    {v:'dashboard',  icon:'layout-dashboard', label:'Dashboard'},
+    {v:'tickets',    icon:'ticket',           label:'Team Queries', badge:'open'},
+    {sec:'Team'},
+    {v:'team',       icon:'users-group',      label:'My Team'},
+    {v:'reports',    icon:'chart-bar',        label:'Reports'},
+    {sec:'Config'},
+    {v:'settings',   icon:'settings',         label:'Settings'}
+  ],
+  user:[
+    {sec:'Main'},
+    {v:'dashboard',  icon:'layout-dashboard', label:'My Dashboard'},
+    {v:'tickets',    icon:'checklist',        label:'My Queries', badge:'open'},
+    {sec:'Config'},
+    {v:'settings',   icon:'settings',         label:'Settings'}
+  ]
+};
+var currentView='dashboard';
+
+function renderNav(){
+  var cfg=NAV_CONFIG[me.role], html='';
+  cfg.forEach(function(item){
+    if(item.sec){ html+='<div class="nav-section-label">'+item.sec+'</div>'; return; }
+    var badgeHtml='';
+    if(item.badge==='open'){
+      var n=visibleTickets().filter(function(t){return t.st==='open'||t.st==='in-progress';}).length;
+      badgeHtml=n?'<span class="nav-badge">'+n+'</span>':'';
+    }
+    html+='<div class="nav-item'+(item.v===currentView?' active':'')+'" data-view="'+item.v+'" onclick="nav(\''+item.v+'\')">'
+      +'<i class="ti ti-'+item.icon+'"></i>'+item.label+badgeHtml+'</div>';
+  });
+  document.getElementById('nav-container').innerHTML=html;
+}
+
+function nav(v){
+  currentView=v;
+  ['dashboard','tickets','team','users','reports','settings'].forEach(function(x){
+    var el=document.getElementById('v-'+x); if(el) el.style.display=(x===v?'flex':'none');
+  });
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.toggle('active', n.getAttribute('data-view')===v);});
+  closeDetail();
+  if(v==='dashboard')renderDashboard();
+  if(v==='tickets')renderTickets();
+  if(v==='team')renderTeam();
+  if(v==='users')renderUsers();
+  if(v==='reports')renderReports();
+  if(v==='settings')renderSettings();
+}
+
+function gotoTicketsFilter(f){
+  nav('tickets');
+  var map={'open':'open','in-progress':'in-progress','resolved':'resolved','critical':'all','complaint':'complaint'};
+  filter=map[f]||'all';
+  document.querySelectorAll('#v-tickets .chip').forEach(function(c){c.classList.remove('active');});
+  var sel={'open':1,'in-progress':2,'resolved':3,'complaint':6}[f];
+  var chips=document.querySelectorAll('#v-tickets .chip');
+  if(sel&&chips[sel])chips[sel].classList.add('active'); else if(chips[0])chips[0].classList.add('active');
+  if(f==='critical'){ renderTicketsList(visibleTickets().filter(function(t){return t.pri==='critical';})); }
+  else renderTickets();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER: whole app shell
+// ═══════════════════════════════════════════════════════
+function renderApp(){
+  // sidebar footer identity
+  document.getElementById('sb-avatar').textContent=initials(me.name);
+  document.getElementById('sb-name').textContent=me.name;
+  document.getElementById('sb-role').textContent={superadmin:'Super Admin',manager:'Manager · '+me.dept,user:'User · '+me.dept}[me.role];
+
+  // dashboard titles + new-ticket buttons per role
+  var dashTitles={superadmin:'Admin Dashboard',manager:'Manager Dashboard',user:'My Dashboard'};
+  set('dash-title',dashTitles[me.role]);
+  set('tickets-title',{superadmin:'All Queries',manager:'Team Queries',user:'My Queries'}[me.role]);
+  set('dash-recent-title',{superadmin:'Recent queries',manager:'Recent team queries',user:'My recent queries'}[me.role]);
+
+  // users cannot create tickets; managers/admin can
+  var canCreate=me.role!=='user';
+  document.getElementById('dash-newbtn').style.display=canCreate?'inline-flex':'none';
+  document.getElementById('tickets-newbtn').style.display=canCreate?'inline-flex':'none';
+  // unassigned chip only for admin/manager
+  document.getElementById('chip-unassigned').style.display=(me.role==='user')?'none':'inline-flex';
+  // settings danger card only super admin
+  document.getElementById('set-danger').style.display=(me.role==='superadmin')?'block':'none';
+
+  renderNav();
+  currentView='dashboard';
+  nav('dashboard');
+}
+
+// ─── Dashboard ───────────────────────────────────────────
+function renderDashboard(){
+  var vt=visibleTickets();
+  var open=vt.filter(function(t){return t.st==='open';}).length;
+  var inp=vt.filter(function(t){return t.st==='in-progress';}).length;
+  var res=vt.filter(function(t){return t.st==='resolved';}).length;
+  var crit=vt.filter(function(t){return t.pri==='critical'&&(t.st==='open'||t.st==='in-progress');}).length;
+  set('s-open',open);set('s-inp',inp);set('s-res',res);set('s-crit',crit);
+
+  var rows=vt.slice().sort(function(a,b){return new Date(b.updated)-new Date(a.updated);}).slice(0,8).map(function(t){
+    return '<tr class="clickable" onclick="openDetail(\''+t.id+'\')">'
+      +'<td style="font-family:monospace;font-size:11px;color:var(--text-muted)">'+t.id+'</td>'
+      +'<td style="font-weight:500;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title)+'</td>'
+      +'<td>'+typeBadge(t.type)+'</td><td>'+priBadge(t.pri)+'</td><td>'+stBadge(t.st)+'</td>'
+      +'<td style="font-size:12px">'+asgnLabel(t)+'</td>'
+      +'<td style="font-size:11px;color:var(--text-muted)">'+age(t.created)+'</td></tr>';
+  });
+  document.getElementById('dash-tbody').innerHTML=rows.join('')||'<tr><td colspan="7"><div class="empty"><i class="ti ti-ticket"></i><p>Nothing here yet</p></div></td></tr>';
+
+  // quick actions vary by role
+  var qa='';
+  if(me.role==='superadmin'){
+    qa='<h2 style="font-size:14px;font-weight:600;margin-bottom:10px">Quick actions</h2><div class="qa-grid">'
+      +'<div class="qa-card" onclick="openUserModal()"><i class="ti ti-user-plus" style="color:var(--blue)"></i><span>Create user / admin</span></div>'
+      +'<div class="qa-card" onclick="gotoTicketsFilter(\'complaint\')"><i class="ti ti-message-report" style="color:var(--red)"></i><span>Review public complaints</span></div>'
+      +'<div class="qa-card" onclick="openNewTicketModal()"><i class="ti ti-plus" style="color:var(--green)"></i><span>New query</span></div>'
+      +'<div class="qa-card" onclick="nav(\'reports\')"><i class="ti ti-chart-bar" style="color:var(--purple)"></i><span>View reports</span></div></div>';
+  } else if(me.role==='manager'){
+    qa='<h2 style="font-size:14px;font-weight:600;margin-bottom:10px">Quick actions</h2><div class="qa-grid">'
+      +'<div class="qa-card" onclick="gotoTicketsFilter(\'complaint\')"><i class="ti ti-message-report" style="color:var(--red)"></i><span>Assign complaints</span></div>'
+      +'<div class="qa-card" onclick="nav(\'team\')"><i class="ti ti-users-group" style="color:var(--blue)"></i><span>My team</span></div>'
+      +'<div class="qa-card" onclick="openNewTicketModal()"><i class="ti ti-plus" style="color:var(--green)"></i><span>New query</span></div>'
+      +'<div class="qa-card" onclick="nav(\'reports\')"><i class="ti ti-chart-bar" style="color:var(--purple)"></i><span>Team reports</span></div></div>';
+  } else {
+    qa='<div class="info-box blue" style="margin-top:4px"><i class="ti ti-info-circle"></i> This is your personal dashboard. Open any item in <strong>My Work</strong> to update its status and add comments for your manager.</div>';
+  }
+  document.getElementById('dash-quick').innerHTML=qa;
+}
+
+// ─── Tickets table ───────────────────────────────────────
+function setFilter(f,el){
+  filter=f;
+  document.querySelectorAll('#v-tickets .chip').forEach(function(c){c.classList.remove('active');});
+  if(el)el.classList.add('active');
+  renderTickets();
+}
+function renderTickets(){
+  var q=(document.getElementById('search')||{value:''}).value.toLowerCase();
+  var list=visibleTickets().filter(function(t){
+    if(filter==='unassigned' && t.asgn) return false;
+    if(filter==='complaint' && t.source!=='complaint') return false;
+    if(['open','in-progress','resolved','closed'].indexOf(filter)>-1 && t.st!==filter) return false;
+    if(q && t.title.toLowerCase().indexOf(q)===-1 && t.id.toLowerCase().indexOf(q)===-1 && (t.req||'').toLowerCase().indexOf(q)===-1) return false;
+    return true;
+  });
+  renderTicketsList(list);
+  // keep the "Public complaints" chip count live
+  var cpEl=document.getElementById('chip-cp-count');
+  if(cpEl){var n=visibleTickets().filter(function(t){return t.source==='complaint'&&(t.st==='open'||t.st==='in-progress');}).length;cpEl.textContent=n?n:''; cpEl.style.display=n?'inline-block':'none';}
+}
+function renderTicketsList(list){
+  list=list.slice().sort(function(a,b){return new Date(b.updated)-new Date(a.updated);});
+  var tbody=document.getElementById('tkt-tbody');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="9"><div class="empty"><i class="ti ti-ticket"></i><p>No tickets match</p></div></td></tr>';return;}
+  var canAssign=me.role!=='user';
+  tbody.innerHTML=list.map(function(t){
+    var actions='<button class="btn sm" onclick="openDetail(\''+t.id+'\')" title="View"><i class="ti ti-eye"></i></button>';
+    if(canAssign) actions+='<button class="btn sm" onclick="openAssignModal(\''+t.id+'\')" title="Assign"><i class="ti ti-user-check"></i></button>';
+    if(me.role==='superadmin') actions+='<button class="btn sm" onclick="openEditTicketModal(\''+t.id+'\')" title="Edit"><i class="ti ti-edit"></i></button>'
+      +'<button class="btn sm danger" onclick="deleteTicket(\''+t.id+'\')" title="Delete"><i class="ti ti-trash"></i></button>';
+    return '<tr>'
+      +'<td onclick="openDetail(\''+t.id+'\')" class="clickable" style="font-family:monospace;font-size:11px;color:var(--text-muted)">'+t.id+'</td>'
+      +'<td onclick="openDetail(\''+t.id+'\')" class="clickable" style="font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title)+'</td>'
+      +'<td>'+typeBadge(t.type)+'</td><td>'+priBadge(t.pri)+'</td><td>'+stBadge(t.st)+'</td>'
+      +'<td style="font-size:12px">'+esc(t.req)+'</td>'
+      +'<td style="font-size:12px">'+asgnLabel(t)+'</td>'
+      +'<td style="font-size:11px;color:var(--text-muted)">'+age(t.created)+'</td>'
+      +'<td><div class="action-group">'+actions+'</div></td></tr>';
+  }).join('');
+}
+
+// ─── My Team (manager) ───────────────────────────────────
+function renderTeam(){
+  var members=usersOfManager(me.id);
+  var grid=document.getElementById('team-grid');
+  if(!members.length){grid.innerHTML='<div class="empty"><i class="ti ti-users"></i><p>No users assigned to you yet</p></div>';return;}
+  grid.innerHTML=members.map(function(u){
+    var mine=db.tickets.filter(function(t){return t.asgn===u.id;});
+    var open=mine.filter(function(t){return t.st==='open';}).length;
+    var inp=mine.filter(function(t){return t.st==='in-progress';}).length;
+    var done=mine.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length;
+    var recent=mine.slice().sort(function(a,b){return new Date(b.updated)-new Date(a.updated);}).slice(0,3);
+    var recentHtml=recent.length?recent.map(function(t){
+      return '<div class="clickable" onclick="openDetail(\''+t.id+'\')" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;margin-bottom:5px">'
+        +stBadge(t.st)+'<span style="flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title)+'</span>'
+        +'<span style="font-size:10px;color:var(--text-muted)">'+age(t.created)+'</span></div>';
+    }).join(''):'<div style="font-size:11px;color:var(--text-muted);padding:6px 0">No work assigned yet.</div>';
+    return '<div class="team-card">'
+      +'<div class="team-card-head"><div class="avatar">'+initials(u.name)+'</div>'
+        +'<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">'+esc(u.name)+'</div><div style="font-size:11px;color:var(--text-muted)">'+esc(u.dept)+' · @'+esc(u.username)+'</div></div></div>'
+      +'<div class="team-mini-stats">'
+        +'<div class="team-mini"><div class="n" style="color:var(--blue)">'+open+'</div><div class="l">Open</div></div>'
+        +'<div class="team-mini"><div class="n" style="color:var(--amber)">'+inp+'</div><div class="l">Active</div></div>'
+        +'<div class="team-mini"><div class="n" style="color:var(--green)">'+done+'</div><div class="l">Done</div></div></div>'
+      +'<div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Latest work</div>'
+      +recentHtml
+      +'</div>';
+  }).join('');
+}
+
+// ─── Users (super admin) ─────────────────────────────────
+var userFilter={role:'all',dept:'all'};
+function setUserFilter(kind,val,el){
+  userFilter[kind]=val;
+  if(el && kind==='role'){document.querySelectorAll('#v-users .stat-card').forEach(function(c){c.classList.remove('active-filter');}); if(val!=='all')el.classList.add('active-filter');}
+  renderUsers();
+}
+function renderUsers(){
+  var all=db.users;
+  set('u-admins', all.filter(function(u){return u.role==='superadmin';}).length);
+  set('u-managers', all.filter(function(u){return u.role==='manager';}).length);
+  set('u-users', all.filter(function(u){return u.role==='user';}).length);
+  set('u-total', all.length);
+
+  // Department filter chips (built from actual data)
+  var depts=[]; all.forEach(function(u){if(depts.indexOf(u.dept)===-1)depts.push(u.dept);}); depts.sort();
+  document.getElementById('dept-filter-row').innerHTML=
+    '<span style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-right:4px">Department:</span>'
+    +'<div class="chip chip-all'+(userFilter.dept==='all'?' active':'')+'" onclick="setUserFilter(\'dept\',\'all\',this)">All departments</div>'
+    +depts.map(function(d){return '<div class="chip chip-req'+(userFilter.dept===d?' active':'')+'" onclick="setUserFilter(\'dept\',\''+esc(d)+'\',this)"><i class="ti ti-building"></i>'+esc(d)+'</div>';}).join('');
+
+  var order={superadmin:0,manager:1,user:2};
+  var list=all.filter(function(u){
+    if(userFilter.role!=='all' && u.role!==userFilter.role) return false;
+    if(userFilter.dept!=='all' && u.dept!==userFilter.dept) return false;
+    return true;
+  }).sort(function(a,b){return (order[a.role]-order[b.role])||a.name.localeCompare(b.name);});
+
+  var title='All accounts';
+  if(userFilter.role!=='all') title={superadmin:'Super admins',manager:'Managers (heads of department)',user:'Users (downline)'}[userFilter.role];
+  if(userFilter.dept!=='all') title += ' · ' + userFilter.dept;
+  set('users-section-title', title);
+
+  if(!list.length){document.getElementById('users-tbody').innerHTML='<tr><td colspan="7"><div class="empty"><i class="ti ti-user-off"></i><p>No accounts match</p></div></td></tr>';return;}
+  document.getElementById('users-tbody').innerHTML=list.map(function(u){
+    var openWork=db.tickets.filter(function(t){return t.asgn===u.id&&(t.st==='open'||t.st==='in-progress');}).length;
+    var reportsTo=u.managerId?esc(userName(u.managerId)):'—';
+    var actions='';
+    if(u.role==='manager') actions+='<button class="btn sm primary" onclick="showManagerTeam(\''+u.id+'\')" title="View downline team"><i class="ti ti-users-group"></i></button>';
+    actions+='<button class="btn sm" onclick="openUserModal(\''+u.id+'\')" title="Edit"><i class="ti ti-edit"></i></button>';
+    if(u.id!==me.id) actions+='<button class="btn sm danger" onclick="deleteUser(\''+u.id+'\')" title="Delete"><i class="ti ti-trash"></i></button>';
+    var nameCell='<div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="width:26px;height:26px;font-size:10px">'+initials(u.name)+'</div>'+esc(u.name);
+    if(u.role==='manager') nameCell+=' <span class="badge medium" style="margin-left:4px">Head of Dept</span>';
+    nameCell+='</div>';
+    var rowClass=(u.role==='manager')?' class="clickable" onclick="showManagerTeam(\''+u.id+'\')"':'';
+    return '<tr'+rowClass+'>'
+      +'<td style="font-weight:500">'+nameCell+'</td>'
+      +'<td style="font-family:monospace;font-size:12px">@'+esc(u.username)+'</td>'
+      +'<td>'+roleBadge(u.role)+'</td>'
+      +'<td style="font-size:12px">'+esc(u.dept)+'</td>'
+      +'<td style="font-size:12px">'+reportsTo+(u.role==='manager'?' <span style="font-size:10px;color:var(--text-muted)">('+usersOfManager(u.id).length+' reports)</span>':'')+'</td>'
+      +'<td>'+(u.role==='user'?badge(openWork>3?'critical':openWork>1?'medium':'low',''+openWork):'—')+'</td>'
+      +'<td onclick="event.stopPropagation()"><div class="action-group">'+actions+'</div></td></tr>';
+  }).join('');
+}
+
+// Manager drill-down: show their downline team + department stats
+function showManagerTeam(mid){
+  var m=userById(mid); if(!m)return;
+  var team=usersOfManager(mid);
+  var deptMembers=db.users.filter(function(u){return u.dept===m.dept;});
+  var deptOtherMgrs=deptMembers.filter(function(u){return u.role==='manager'&&u.id!==mid;});
+  var openWork=db.tickets.filter(function(t){var u=userById(t.asgn||''); return u && u.managerId===mid && (t.st==='open'||t.st==='in-progress');}).length;
+  var doneWork=db.tickets.filter(function(t){var u=userById(t.asgn||''); return u && u.managerId===mid && (t.st==='resolved'||t.st==='closed');}).length;
+  document.getElementById('team-modal-title').textContent='Downline of '+m.name+' · '+m.dept;
+  document.getElementById('team-modal-body').innerHTML=
+    '<div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">'
+    +'<div class="stat-card blue"><div class="stat-label">Direct reports</div><div class="stat-value">'+team.length+'</div></div>'
+    +'<div class="stat-card amber"><div class="stat-label">Open + Active</div><div class="stat-value">'+openWork+'</div></div>'
+    +'<div class="stat-card green"><div class="stat-label">Done</div><div class="stat-value">'+doneWork+'</div></div>'
+    +'<div class="stat-card purple"><div class="stat-label">Dept size</div><div class="stat-value">'+deptMembers.length+'</div></div>'
+    +'</div>'
+    +'<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Downline team</div>'
+    +(team.length?'<div class="table-wrap" style="margin-bottom:14px"><table><thead><tr><th>Name</th><th>Username</th><th>Department</th><th>Open</th><th>Active</th><th>Done</th></tr></thead><tbody>'
+      +team.map(function(u){
+        var mine=db.tickets.filter(function(t){return t.asgn===u.id;});
+        return '<tr><td style="font-weight:500"><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="width:24px;height:24px;font-size:10px">'+initials(u.name)+'</div>'+esc(u.name)+'</div></td>'
+          +'<td style="font-family:monospace;font-size:12px">@'+esc(u.username)+'</td>'
+          +'<td style="font-size:12px">'+esc(u.dept)+'</td>'
+          +'<td>'+mine.filter(function(t){return t.st==='open';}).length+'</td>'
+          +'<td>'+mine.filter(function(t){return t.st==='in-progress';}).length+'</td>'
+          +'<td>'+mine.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length+'</td></tr>';
+      }).join('')+'</tbody></table></div>':'<div class="empty" style="padding:20px"><i class="ti ti-user-off"></i><p>No direct reports yet</p></div>')
+    +(deptOtherMgrs.length?
+      '<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Other managers in '+esc(m.dept)+' department</div>'
+      +'<div class="table-wrap"><table><thead><tr><th>Name</th><th>Direct reports</th></tr></thead><tbody>'
+      +deptOtherMgrs.map(function(u){return '<tr class="clickable" onclick="showManagerTeam(\''+u.id+'\')"><td style="font-weight:500">'+esc(u.name)+'</td><td>'+usersOfManager(u.id).length+'</td></tr>';}).join('')
+      +'</tbody></table></div>':'');
+  document.getElementById('team-modal').style.display='flex';
+}
+
+function downloadUsersCSV(){
+  var h='Name,Username,Role,Department,Reports To,Open Queries,In Progress,Resolved\n';
+  var rows=db.users.map(function(u){
+    var t=db.tickets.filter(function(x){return x.asgn===u.id;});
+    return [u.name,'@'+u.username,u.role,u.dept,u.managerId?userName(u.managerId):'',
+      t.filter(function(x){return x.st==='open';}).length,
+      t.filter(function(x){return x.st==='in-progress';}).length,
+      t.filter(function(x){return x.st==='resolved'||x.st==='closed';}).length
+    ].map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');
+  }).join('\n');
+  downloadBlob(h+rows,'HG_Users_'+today()+'.csv'); toast('User list downloaded','success');
+}
+
+// ─── Reports ─────────────────────────────────────────────
+function renderReports(){
+  var vt=visibleTickets();
+  var done=vt.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length;
+  var inp=vt.filter(function(t){return t.st==='in-progress';}).length;
+  var pending=vt.filter(function(t){return t.st==='open'||t.st==='in-progress';}).length;
+  set('r-total', vt.length);
+  set('r-inp', inp);
+  set('r-done', done);
+  set('r-pending', pending);
+  set('r-rate', vt.length?Math.round(done/vt.length*100)+'%':'0%');
+  set('r-crit', vt.filter(function(t){return t.pri==='critical'&&t.st!=='resolved'&&t.st!=='closed';}).length);
+  // active users + departments in scope
+  var workers={}, deptSet={};
+  vt.forEach(function(t){if(t.asgn&&(t.st==='open'||t.st==='in-progress'))workers[t.asgn]=1; deptSet[t.dept]=1;});
+  set('r-workers', Object.keys(workers).length);
+  set('r-depts', Object.keys(deptSet).length);
+  set('r-note', done + ' of ' + vt.length + ' queries resolved · ' + pending + ' still pending · ' + inp + ' currently in progress.');
+
+  // Workload by user table (all users in scope)
+  var users=(me.role==='superadmin')?db.users.filter(function(u){return u.role==='user'||u.role==='manager';}):
+            (me.role==='manager')?usersOfManager(me.id):[userById(me.id)];
+  var uRows=users.map(function(u){
+    var mine=vt.filter(function(t){return t.asgn===u.id;});
+    return {u:u,
+      open:mine.filter(function(t){return t.st==='open';}).length,
+      inp:mine.filter(function(t){return t.st==='in-progress';}).length,
+      done:mine.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length,
+      total:mine.length};
+  }).filter(function(r){return r.total>0 || me.role==='superadmin' || me.role==='manager';})
+    .sort(function(a,b){return (b.open+b.inp)-(a.open+a.inp);});
+  document.getElementById('user-report-tbody').innerHTML=uRows.length?uRows.map(function(r){
+    return '<tr class="clickable" onclick="reportDrill(\'user\',\''+r.u.id+'\')" title="Open PDF report for '+esc(r.u.name)+'">'
+      +'<td style="font-weight:500"><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="width:24px;height:24px;font-size:10px">'+initials(r.u.name)+'</div>'+esc(r.u.name)+'</div></td>'
+      +'<td style="font-size:12px">'+esc(r.u.dept)+'</td>'
+      +'<td style="font-size:12px">'+(r.u.managerId?esc(userName(r.u.managerId)):'—')+'</td>'
+      +'<td>'+badge(r.open?'open':'low',''+r.open)+'</td>'
+      +'<td>'+badge(r.inp?'in-progress':'low',''+r.inp)+'</td>'
+      +'<td>'+badge(r.done?'resolved':'low',''+r.done)+'</td>'
+      +'<td style="font-weight:600">'+r.total+'</td></tr>';
+  }).join(''):'<tr><td colspan="7"><div class="empty" style="padding:20px"><p>No user workload data yet</p></div></td></tr>';
+
+  // Cases by department table
+  var depts={};
+  vt.forEach(function(t){var d=t.dept||'—'; if(!depts[d])depts[d]={open:0,inp:0,done:0,crit:0,total:0}; depts[d].total++;
+    if(t.st==='open')depts[d].open++;
+    if(t.st==='in-progress')depts[d].inp++;
+    if(t.st==='resolved'||t.st==='closed')depts[d].done++;
+    if(t.pri==='critical'&&t.st!=='resolved'&&t.st!=='closed')depts[d].crit++;});
+  document.getElementById('dept-report-tbody').innerHTML=Object.keys(depts).length?Object.entries(depts).sort(function(a,b){return b[1].total-a[1].total;}).map(function(kv){
+    var head=db.users.find(function(u){return u.role==='manager'&&u.dept===kv[0];});
+    var teamSize=db.users.filter(function(u){return u.dept===kv[0];}).length;
+    return '<tr class="clickable" onclick="reportDrill(\'dept\',\''+esc(kv[0]).replace(/\x27/g,'&#39;')+'\')" title="Open PDF report for '+esc(kv[0])+' department">'
+      +'<td style="font-weight:500">'+esc(kv[0])+'</td>'
+      +'<td style="font-size:12px">'+(head?esc(head.name):'—')+'</td>'
+      +'<td>'+teamSize+'</td>'
+      +'<td>'+badge(kv[1].open?'open':'low',''+kv[1].open)+'</td>'
+      +'<td>'+badge(kv[1].inp?'in-progress':'low',''+kv[1].inp)+'</td>'
+      +'<td>'+badge(kv[1].done?'resolved':'low',''+kv[1].done)+'</td>'
+      +'<td>'+badge(kv[1].crit?'critical':'low',''+kv[1].crit)+'</td>'
+      +'<td style="font-weight:600">'+kv[1].total+'</td></tr>';
+  }).join(''):'<tr><td colspan="8"><div class="empty" style="padding:20px"><p>No department data yet</p></div></td></tr>';
+
+  // Bar charts
+  var byType={},byPri={},bySt={};
+  vt.forEach(function(t){byType[t.type]=(byType[t.type]||0)+1;byPri[t.pri]=(byPri[t.pri]||0)+1;bySt[t.st]=(bySt[t.st]||0)+1;});
+  var colors={incident:'var(--red)',change:'var(--purple)',request:'var(--blue)',problem:'var(--amber)',complaint:'var(--red)',critical:'var(--red)',high:'var(--amber)',medium:'var(--blue)',low:'var(--gray-text)',open:'var(--blue)','in-progress':'var(--amber)',resolved:'var(--green)',closed:'var(--gray-text)'};
+  document.getElementById('report-body').innerHTML=[
+    reportCard('Queries by type',byType,colors),
+    reportCard('Queries by priority',byPri,colors),
+    reportCard('Queries by status',bySt,colors)
+  ].join('');
+}
+
+// ─── Report drill-down → full DASHBOARD (with stats, charts, table) → PDF ──
+// Every card / row on Reports calls this. It renders a proper mini-dashboard
+// (cards + bar charts + table) that you can download as a PDF.
+var CHART_COLORS={incident:'var(--red)',change:'var(--purple)',request:'var(--blue)',problem:'var(--amber)',complaint:'var(--red)',critical:'var(--red)',high:'var(--amber)',medium:'var(--blue)',low:'var(--gray-text)',open:'var(--blue)','in-progress':'var(--amber)',resolved:'var(--green)',closed:'var(--gray-text)'};
+
+function reportDrill(kind, value){
+  var vt=visibleTickets();
+  var title='', subtitle='', body='';
+
+  if(kind==='status'){
+    var list;
+    if(value==='pending'){ list=vt.filter(function(t){return t.st==='open'||t.st==='in-progress';}); title='Pending queries — dashboard'; subtitle='Queries currently open or in progress'; }
+    else if(value==='in-progress'){ list=vt.filter(function(t){return t.st==='in-progress';}); title='In-progress queries — dashboard'; subtitle='Actively being worked on right now'; }
+    else if(value==='resolved'){ list=vt.filter(function(t){return t.st==='resolved'||t.st==='closed';}); title='Resolved queries — dashboard'; subtitle='Completed and closed queries'; }
+    else if(value==='open'){ list=vt.filter(function(t){return t.st==='open';}); title='Open queries — dashboard'; subtitle='Awaiting action'; }
+    else { list=vt; title='All queries — full dashboard'; subtitle='Every query visible to '+me.name; }
+    body=queriesDashboard(list);
+  } else if(kind==='critical'){
+    var list=vt.filter(function(t){return t.pri==='critical';});
+    title='Critical priority — dashboard'; subtitle='All queries flagged as critical priority';
+    body=queriesDashboard(list);
+  } else if(kind==='user'){
+    var u=userById(value); if(!u){toast('User not found','error');return;}
+    var list=vt.filter(function(t){return t.asgn===value;});
+    title='Dashboard — '+u.name;
+    subtitle='User dashboard · '+u.dept+' · @'+u.username+(u.managerId?' · reports to '+userName(u.managerId):'');
+    body=userDashboard(u, list);
+  } else if(kind==='dept'){
+    var list=vt.filter(function(t){return t.dept===value;});
+    var team=db.users.filter(function(u){return u.dept===value;});
+    var head=team.find(function(u){return u.role==='manager';});
+    title='Dashboard — '+value+' department';
+    subtitle='Head: '+(head?head.name:'—')+' · Team size: '+team.length;
+    body=deptDashboard(value, list, team);
+  } else if(kind==='workers'){
+    var workerIds={}; vt.forEach(function(t){ if(t.asgn && (t.st==='open'||t.st==='in-progress')) workerIds[t.asgn]=1; });
+    var users=Object.keys(workerIds).map(function(id){return userById(id);}).filter(Boolean);
+    title='Dashboard — active users';
+    subtitle=users.length+' user'+(users.length===1?'':'s')+' currently working on open or in-progress queries';
+    body=workersDashboard(users, vt);
+  } else if(kind==='all-depts'){
+    var deptSet={}; vt.forEach(function(t){ if(t.dept) deptSet[t.dept]=(deptSet[t.dept]||0)+1; });
+    var depts=Object.keys(deptSet).sort();
+    title='Dashboard — all departments';
+    subtitle=depts.length+' departments have queries logged';
+    body=departmentsDashboard(depts, vt);
+  }
+
+  document.getElementById('rd-title').textContent=title;
+  document.getElementById('rd-body').innerHTML=brandedHeader(title, subtitle)+body+drillFooter();
+  document.getElementById('report-drill-modal').style.display='flex';
+}
+
+// ─── Reusable drill building blocks ──────────────────────
+function brandedHeader(title, subtitle){
+  return '<div style="margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--border)">'
+    +'<div style="display:flex;align-items:center;gap:14px;margin-bottom:10px"><svg width="46" height="46"><use href="#hgKnot"/></svg>'
+    +'<div><div style="font-size:19px;font-weight:700;letter-spacing:-.01em">Homeland <span style="color:#d4a017">Helpdesk</span></div>'
+    +'<div style="font-size:11px;color:var(--text-muted)">Dashboard Report · Generated by '+esc(me.name)+' on '+new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div></div></div>'
+    +'<div style="font-size:22px;font-weight:600;margin-top:6px">'+esc(title)+'</div>'
+    +'<div style="font-size:13px;color:var(--text-secondary);margin-top:3px">'+esc(subtitle)+'</div></div>';
+}
+function drillFooter(){
+  return '<div style="margin-top:24px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);text-align:center">Homeland Helpdesk · Confidential · Generated '+new Date().toLocaleString('en-GB')+'</div>';
+}
+function sectionLabel(t){return '<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-top:16px;margin-bottom:8px">'+esc(t)+'</div>';}
+function statCards(cards){
+  var cols=Math.min(cards.length,4);
+  return '<div class="stats-grid" style="grid-template-columns:repeat('+cols+',1fr);margin-bottom:12px">'
+    +cards.map(function(c){return '<div class="stat-card '+c.cls+'"><div class="stat-label">'+esc(c.label)+'</div><div class="stat-value">'+esc(String(c.value))+'</div>'+(c.sub?'<div class="stat-sub">'+esc(c.sub)+'</div>':'')+'</div>';}).join('')
+    +'</div>';
+}
+function chartsGrid(cards){
+  var visible=cards.filter(function(c){return Object.keys(c.data||{}).length>0;});
+  if(!visible.length) return '';
+  return '<div class="report-grid" style="margin-bottom:12px">'+visible.map(function(c){return reportCard(c.title, c.data, c.colors||{});}).join('')+'</div>';
+}
+function queriesTable(list, heading){
+  if(!list.length) return '<div class="empty" style="padding:30px"><i class="ti ti-file-off"></i><p>No queries in this scope yet</p></div>';
+  var rows=list.slice().sort(function(a,b){return new Date(b.updated)-new Date(a.updated);}).map(function(t){
+    return '<tr>'
+      +'<td style="font-family:monospace;font-size:11px">'+t.id+'</td>'
+      +'<td style="font-size:12px;font-weight:500;max-width:240px">'+esc(t.title)+'</td>'
+      +'<td>'+typeBadge(t.type)+'</td>'
+      +'<td>'+priBadge(t.pri)+'</td>'
+      +'<td>'+stBadge(t.st)+'</td>'
+      +'<td style="font-size:12px">'+esc(t.req)+'</td>'
+      +'<td style="font-size:12px">'+esc(t.dept)+'</td>'
+      +'<td style="font-size:12px">'+(t.asgn?esc(userName(t.asgn)):'—')+'</td>'
+      +'<td style="font-size:11px;color:var(--text-muted)">'+new Date(t.created).toLocaleDateString('en-GB')+'</td></tr>';
+  }).join('');
+  return sectionLabel(heading||('All queries ('+list.length+')'))
+    +'<div class="table-wrap"><table><thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Priority</th><th>Status</th><th>Requester</th><th>Dept</th><th>Assigned</th><th>Created</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function tallyBy(list, key, mapFn){
+  var out={}; list.forEach(function(t){ var k=mapFn?mapFn(t):t[key]; if(k==null||k==='')return; out[k]=(out[k]||0)+1; }); return out;
+}
+
+// ─── Query-list dashboard (used by status / critical drills) ──
+function queriesDashboard(list){
+  var open=list.filter(function(t){return t.st==='open';}).length;
+  var inp=list.filter(function(t){return t.st==='in-progress';}).length;
+  var done=list.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length;
+  var crit=list.filter(function(t){return t.pri==='critical';}).length;
+  var resRate=list.length?Math.round(done/list.length*100)+'%':'0%';
+  var uniqueDepts=Object.keys(tallyBy(list,'dept')).length;
+  var uniqueAsgn=Object.keys(list.reduce(function(a,t){if(t.asgn)a[t.asgn]=1;return a;},{})).length;
+  return sectionLabel('Overview')
+    +statCards([
+      {cls:'blue',label:'Total',value:list.length},
+      {cls:'blue',label:'Open',value:open},
+      {cls:'amber',label:'In progress',value:inp},
+      {cls:'green',label:'Resolved',value:done}
+    ])
+    +statCards([
+      {cls:'red',label:'Critical',value:crit},
+      {cls:'green',label:'Resolution rate',value:resRate},
+      {cls:'purple',label:'Departments involved',value:uniqueDepts},
+      {cls:'blue',label:'Assignees',value:uniqueAsgn}
+    ])
+    +sectionLabel('Breakdowns')
+    +chartsGrid([
+      {title:'By type',data:tallyBy(list,'type'),colors:CHART_COLORS},
+      {title:'By priority',data:tallyBy(list,'pri'),colors:CHART_COLORS},
+      {title:'By department',data:tallyBy(list,'dept')},
+      {title:'By assignee',data:tallyBy(list,null,function(t){return t.asgn?userName(t.asgn):'Unassigned';})}
+    ])
+    +queriesTable(list, 'All matching queries ('+list.length+')');
+}
+
+// ─── Per-user dashboard ─────────────────────────────────
+function userDashboard(u, list){
+  var open=list.filter(function(t){return t.st==='open';}).length;
+  var inp=list.filter(function(t){return t.st==='in-progress';}).length;
+  var done=list.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length;
+  var crit=list.filter(function(t){return t.pri==='critical'&&t.st!=='resolved'&&t.st!=='closed';}).length;
+  var resRate=list.length?Math.round(done/list.length*100)+'%':'—';
+  var oldestOpen=list.filter(function(t){return t.st==='open'||t.st==='in-progress';})
+    .sort(function(a,b){return new Date(a.created)-new Date(b.created);})[0];
+  var profile='<div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--surface-1);border-radius:12px;margin-bottom:14px">'
+    +'<div class="avatar" style="width:52px;height:52px;font-size:18px">'+initials(u.name)+'</div>'
+    +'<div style="flex:1"><div style="font-size:17px;font-weight:600">'+esc(u.name)+'</div>'
+    +'<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">@'+esc(u.username)+' · '+esc(u.dept)+' · '+roleBadge(u.role)+(u.managerId?' · reports to <strong>'+esc(userName(u.managerId))+'</strong>':'')+'</div></div></div>';
+  return profile
+    +sectionLabel('Their workload at a glance')
+    +statCards([
+      {cls:'blue',label:'Total assigned',value:list.length},
+      {cls:'blue',label:'Open',value:open},
+      {cls:'amber',label:'In progress',value:inp},
+      {cls:'green',label:'Resolved',value:done}
+    ])
+    +statCards([
+      {cls:'red',label:'Critical open',value:crit},
+      {cls:'green',label:'Resolution rate',value:resRate},
+      {cls:'purple',label:'Oldest open',value:oldestOpen?age(oldestOpen.created):'—',sub:oldestOpen?oldestOpen.id:''},
+      {cls:'blue',label:'Departments served',value:Object.keys(tallyBy(list,'dept')).length}
+    ])
+    +sectionLabel('Breakdowns for this user')
+    +chartsGrid([
+      {title:'By type',data:tallyBy(list,'type'),colors:CHART_COLORS},
+      {title:'By priority',data:tallyBy(list,'pri'),colors:CHART_COLORS},
+      {title:'By status',data:tallyBy(list,'st'),colors:CHART_COLORS},
+      {title:'By requester\'s department',data:tallyBy(list,'dept')}
+    ])
+    +queriesTable(list, 'Queries assigned to '+u.name+' ('+list.length+')');
+}
+
+// ─── Per-department dashboard ───────────────────────────
+function deptDashboard(deptName, list, team){
+  var open=list.filter(function(t){return t.st==='open';}).length;
+  var inp=list.filter(function(t){return t.st==='in-progress';}).length;
+  var done=list.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length;
+  var crit=list.filter(function(t){return t.pri==='critical'&&t.st!=='resolved'&&t.st!=='closed';}).length;
+  var resRate=list.length?Math.round(done/list.length*100)+'%':'—';
+  var mgrs=team.filter(function(u){return u.role==='manager';});
+  var users=team.filter(function(u){return u.role==='user';});
+  var head=mgrs[0];
+  var activeMembers=Object.keys(list.reduce(function(a,t){if(t.asgn)a[t.asgn]=1;return a;},{})).length;
+  var teamRows=team.map(function(u){
+    var mine=list.filter(function(t){return t.asgn===u.id;});
+    return '<tr class="clickable" onclick="reportDrill(\'user\',\''+u.id+'\')" title="Open user dashboard">'
+      +'<td style="font-weight:500"><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="width:24px;height:24px;font-size:10px">'+initials(u.name)+'</div>'+esc(u.name)+(u.role==='manager'?' <span class="badge medium">Head</span>':'')+'</div></td>'
+      +'<td>'+roleBadge(u.role)+'</td>'
+      +'<td>'+mine.filter(function(t){return t.st==='open';}).length+'</td>'
+      +'<td>'+mine.filter(function(t){return t.st==='in-progress';}).length+'</td>'
+      +'<td>'+mine.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length+'</td>'
+      +'<td style="font-weight:600">'+mine.length+'</td></tr>';
+  }).join('');
+  return sectionLabel('Department at a glance')
+    +statCards([
+      {cls:'blue',label:'Team size',value:team.length,sub:mgrs.length+' mgr · '+users.length+' user'},
+      {cls:'purple',label:'Working on queries',value:activeMembers},
+      {cls:'blue',label:'Total queries',value:list.length},
+      {cls:'red',label:'Critical open',value:crit}
+    ])
+    +statCards([
+      {cls:'blue',label:'Open',value:open},
+      {cls:'amber',label:'In progress',value:inp},
+      {cls:'green',label:'Resolved',value:done},
+      {cls:'green',label:'Resolution rate',value:resRate}
+    ])
+    +sectionLabel('Department breakdowns')
+    +chartsGrid([
+      {title:'By type',data:tallyBy(list,'type'),colors:CHART_COLORS},
+      {title:'By priority',data:tallyBy(list,'pri'),colors:CHART_COLORS},
+      {title:'By status',data:tallyBy(list,'st'),colors:CHART_COLORS},
+      {title:'By team member',data:tallyBy(list,null,function(t){return t.asgn?userName(t.asgn):'Unassigned';})}
+    ])
+    +(team.length?sectionLabel('Team members ('+team.length+') — click any to drill into their dashboard')
+      +'<div class="table-wrap" style="margin-bottom:12px"><table><thead><tr><th>Name</th><th>Role</th><th>Open</th><th>In progress</th><th>Resolved</th><th>Total</th></tr></thead><tbody>'+teamRows+'</tbody></table></div>':'')
+    +queriesTable(list, 'All '+deptName+' queries ('+list.length+')');
+}
+
+// ─── Active-users dashboard ─────────────────────────────
+function workersDashboard(users, vt){
+  var rows=users.map(function(u){
+    var mine=vt.filter(function(t){return t.asgn===u.id;});
+    return {u:u,
+      open:mine.filter(function(t){return t.st==='open';}).length,
+      inp:mine.filter(function(t){return t.st==='in-progress';}).length,
+      done:mine.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length,
+      total:mine.length,
+      active:mine.filter(function(t){return t.st==='open'||t.st==='in-progress';}).length};
+  }).sort(function(a,b){return b.active-a.active;});
+  var totalActive=rows.reduce(function(s,r){return s+r.active;},0);
+  var totalDone=rows.reduce(function(s,r){return s+r.done;},0);
+  var mostLoaded=rows[0];
+  var avgLoad=rows.length?Math.round(totalActive/rows.length*10)/10:0;
+  var byUser={}; rows.forEach(function(r){if(r.active)byUser[r.u.name]=r.active;});
+  var byDept={}; rows.forEach(function(r){byDept[r.u.dept]=(byDept[r.u.dept]||0)+r.active;});
+  if(!users.length) return '<div class="empty" style="padding:40px"><i class="ti ti-user-off"></i><p>No users have open work right now</p></div>';
+  var tRows=rows.map(function(r){
+    return '<tr class="clickable" onclick="reportDrill(\'user\',\''+r.u.id+'\')" title="Open user dashboard">'
+      +'<td style="font-weight:500"><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="width:24px;height:24px;font-size:10px">'+initials(r.u.name)+'</div>'+esc(r.u.name)+'</div></td>'
+      +'<td style="font-size:12px">'+esc(r.u.dept)+'</td>'
+      +'<td style="font-size:12px">'+(r.u.managerId?esc(userName(r.u.managerId)):'—')+'</td>'
+      +'<td>'+r.open+'</td><td>'+r.inp+'</td><td>'+r.done+'</td><td style="font-weight:600">'+r.total+'</td></tr>';
+  }).join('');
+  return sectionLabel('Active-users overview')
+    +statCards([
+      {cls:'purple',label:'Active users',value:users.length},
+      {cls:'amber',label:'Total open work',value:totalActive},
+      {cls:'blue',label:'Avg per user',value:avgLoad},
+      {cls:'green',label:'Resolved so far',value:totalDone}
+    ])
+    +statCards([
+      {cls:'red',label:'Most loaded user',value:mostLoaded?mostLoaded.u.name.split(' ')[0]:'—',sub:mostLoaded?mostLoaded.active+' active queries':''},
+      {cls:'blue',label:'Departments covered',value:Object.keys(byDept).length},
+      {cls:'blue',label:'Managers among them',value:users.filter(function(u){return u.role==='manager';}).length},
+      {cls:'green',label:'Users among them',value:users.filter(function(u){return u.role==='user';}).length}
+    ])
+    +sectionLabel('Workload distribution')
+    +chartsGrid([
+      {title:'Open work by user',data:byUser},
+      {title:'Open work by department',data:byDept}
+    ])
+    +sectionLabel('All active users ('+users.length+') — click any row for that user\'s dashboard')
+    +'<div class="table-wrap"><table><thead><tr><th>User</th><th>Department</th><th>Manager</th><th>Open</th><th>In progress</th><th>Resolved</th><th>Total</th></tr></thead><tbody>'+tRows+'</tbody></table></div>';
+}
+
+// ─── All-departments dashboard ──────────────────────────
+function departmentsDashboard(depts, vt){
+  var deptData=depts.map(function(d){
+    var dt=vt.filter(function(t){return t.dept===d;});
+    var head=db.users.find(function(u){return u.role==='manager'&&u.dept===d;});
+    var teamSize=db.users.filter(function(u){return u.dept===d;}).length;
+    return {name:d, head:head?head.name:'—', teamSize:teamSize,
+      open:dt.filter(function(t){return t.st==='open';}).length,
+      inp:dt.filter(function(t){return t.st==='in-progress';}).length,
+      done:dt.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length,
+      crit:dt.filter(function(t){return t.pri==='critical'&&t.st!=='resolved'&&t.st!=='closed';}).length,
+      total:dt.length};
+  }).sort(function(a,b){return b.total-a.total;});
+  if(!deptData.length) return '<div class="empty" style="padding:40px"><i class="ti ti-building-off"></i><p>No departments have queries yet</p></div>';
+  var totalQ=deptData.reduce(function(s,d){return s+d.total;},0);
+  var largest=deptData[0];
+  var mostCritical=deptData.slice().sort(function(a,b){return b.crit-a.crit;})[0];
+  var totalCrit=deptData.reduce(function(s,d){return s+d.crit;},0);
+  var byDept={}; deptData.forEach(function(d){byDept[d.name]=d.total;});
+  var byDeptOpen={}; deptData.forEach(function(d){if(d.open||d.inp)byDeptOpen[d.name]=d.open+d.inp;});
+  var byDeptCrit={}; deptData.forEach(function(d){if(d.crit)byDeptCrit[d.name]=d.crit;});
+  var tRows=deptData.map(function(d){
+    return '<tr class="clickable" onclick="reportDrill(\'dept\',\''+esc(d.name).replace(/\x27/g,'&#39;')+'\')" title="Open department dashboard">'
+      +'<td style="font-weight:500">'+esc(d.name)+'</td>'
+      +'<td style="font-size:12px">'+esc(d.head)+'</td>'
+      +'<td>'+d.teamSize+'</td>'
+      +'<td>'+d.open+'</td><td>'+d.inp+'</td><td>'+d.done+'</td>'
+      +'<td>'+(d.crit?'<span class="badge critical">'+d.crit+'</span>':'0')+'</td>'
+      +'<td style="font-weight:600">'+d.total+'</td></tr>';
+  }).join('');
+  return sectionLabel('All departments overview')
+    +statCards([
+      {cls:'blue',label:'Departments',value:depts.length},
+      {cls:'blue',label:'Total queries',value:totalQ},
+      {cls:'red',label:'Total critical open',value:totalCrit},
+      {cls:'purple',label:'Largest dept',value:largest?largest.name:'—',sub:largest?largest.total+' queries':''}
+    ])
+    +statCards([
+      {cls:'red',label:'Most critical dept',value:mostCritical&&mostCritical.crit?mostCritical.name:'—',sub:mostCritical&&mostCritical.crit?mostCritical.crit+' critical':'0 critical'},
+      {cls:'amber',label:'Total in progress',value:deptData.reduce(function(s,d){return s+d.inp;},0)},
+      {cls:'green',label:'Total resolved',value:deptData.reduce(function(s,d){return s+d.done;},0)},
+      {cls:'green',label:'Avg per dept',value:depts.length?Math.round(totalQ/depts.length*10)/10:0}
+    ])
+    +sectionLabel('Department distribution')
+    +chartsGrid([
+      {title:'Total queries by department',data:byDept},
+      {title:'Open work by department',data:byDeptOpen},
+      {title:'Critical open by department',data:byDeptCrit,colors:{}}
+    ])
+    +sectionLabel('All departments ('+depts.length+') — click any row for its dashboard')
+    +'<div class="table-wrap"><table><thead><tr><th>Department</th><th>Head</th><th>Team size</th><th>Open</th><th>In progress</th><th>Resolved</th><th>Critical</th><th>Total</th></tr></thead><tbody>'+tRows+'</tbody></table></div>';
+}
+
+// Trigger browser print for a modal → user picks "Save as PDF"
+function printReport(modalId){
+  var m=document.getElementById(modalId); if(!m)return;
+  var prevTitle=document.title;
+  document.title='Homeland Helpdesk Report · '+today();
+  document.documentElement.classList.add('printing');
+  m.classList.add('printing-container');
+  setTimeout(function(){
+    window.print();
+    setTimeout(function(){
+      document.documentElement.classList.remove('printing');
+      m.classList.remove('printing-container');
+      document.title=prevTitle;
+    },100);
+  },80);
+}
+function reportCard(title,data,colors){
+  var keys=Object.keys(data);
+  if(!keys.length) return '<div class="report-card"><h3><i class="ti ti-chart-bar"></i>'+esc(title)+'</h3><div class="empty" style="padding:20px"><p>No data</p></div></div>';
+  var max=Math.max.apply(null,Object.values(data).concat([1]));
+  var bars=Object.entries(data).sort(function(a,b){return b[1]-a[1];}).map(function(kv){
+    var pct=Math.round(kv[1]/max*100), col=(colors&&colors[kv[0]])||'var(--blue)';
+    return '<div class="bar-row"><span class="bar-label" title="'+esc(kv[0])+'">'+esc(kv[0])+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+col+'"></div></div><span class="bar-val">'+kv[1]+'</span></div>';
+  }).join('');
+  return '<div class="report-card"><h3><i class="ti ti-chart-bar"></i>'+esc(title)+'</h3>'+bars+'</div>';
+}
+
+// ─── Settings ────────────────────────────────────────────
+function renderSettings(){
+  set('set-name',me.name); set('set-user','@'+me.username); set('set-dept',me.dept);
+  document.getElementById('set-role').innerHTML=roleBadge(me.role);
+  updateStorageIndicator();
+}
+
+// ═══════════════════════════════════════════════════════
+//  DETAIL PANEL
+// ═══════════════════════════════════════════════════════
+function openDetail(id){
+  activeTicket=db.tickets.find(function(t){return t.id===id;});
+  if(!activeTicket)return;
+  var t=activeTicket;
+  set('dp-id',t.id+' · '+(t.source==='complaint'?'Complaint':'Ticket'));
+  set('dp-title',t.title);
+  document.getElementById('dp-status').innerHTML=stBadge(t.st);
+  document.getElementById('dp-priority').innerHTML=priBadge(t.pri);
+  document.getElementById('dp-type').innerHTML=typeBadge(t.type);
+  set('dp-req',t.req+(t.reqEmail?' · '+t.reqEmail:''));
+  set('dp-dept',t.dept);
+  set('dp-mgr',t.managerId?userName(t.managerId):'—');
+  set('dp-created',new Date(t.created).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}));
+  set('dp-desc',t.desc||'—');
+
+  // assigned + reassign control
+  var asgnHtml='<span>'+ (t.asgn?esc(userName(t.asgn)):'Unassigned') +'</span>';
+  if(me.role!=='user') asgnHtml+='<button class="btn xs" style="margin-left:5px" onclick="openAssignModal(\''+t.id+'\')"><i class="ti ti-user-check"></i> Assign</button>';
+  document.getElementById('dp-asgn-wrap').innerHTML=asgnHtml;
+
+  // header actions
+  var hdr='';
+  if(me.role==='superadmin') hdr+='<button class="btn sm warning" onclick="openEditTicketModal(\''+t.id+'\')" title="Edit"><i class="ti ti-edit"></i></button>'
+    +'<button class="btn sm danger" onclick="deleteTicket(\''+t.id+'\')" title="Delete"><i class="ti ti-trash"></i></button>';
+  hdr+='<button class="btn sm" onclick="closeDetail()"><i class="ti ti-x"></i></button>';
+  document.getElementById('dp-header-actions').innerHTML=hdr;
+
+  // suggestion card for high/critical
+  if(t.pri==='critical'||t.pri==='high'){document.getElementById('dp-ai').style.display='block';document.getElementById('dp-ai-text').textContent=AI_TIPS[t.type]||AI_TIPS.request;}
+  else document.getElementById('dp-ai').style.display='none';
+
+  // status buttons — everyone with visibility can move status of their own items
+  var statuses=[['open','Open'],['in-progress','In progress'],['resolved','Resolved'],['closed','Close']];
+  document.getElementById('dp-status-btns').innerHTML=statuses.map(function(s){
+    var cls=t.st===s[0]?' primary':'';
+    return '<button class="btn sm'+cls+'" onclick="setSt(\''+s[0]+'\')">'+s[1]+'</button>';
+  }).join('');
+
+  document.getElementById('dp-timeline').innerHTML=buildTimeline(t.log);
+  document.getElementById('comment-input').value='';
+  document.getElementById('detail-panel').classList.remove('hidden');
+}
+function buildTimeline(log){
+  return log.slice().reverse().map(function(l){
+    var isComment=l.type==='comment';
+    return '<div class="tl-item"><div class="tl-avatar">'+initials(l.user)+'</div>'
+      +'<div class="tl-bubble'+(isComment?' comment':'')+'">'
+      +'<div class="tl-bubble-header"><span class="tl-name">'+esc(l.user)+'</span><span class="tl-time">'+age(l.at)+'</span></div>'
+      +'<div class="tl-text">'+esc(l.msg)+'</div></div></div>';
+  }).join('');
+}
+function addComment(){
+  var val=document.getElementById('comment-input').value.trim();
+  if(!val||!activeTicket)return;
+  activeTicket.log.push({type:'comment',msg:val,user:me.name,at:new Date().toISOString()});
+  activeTicket.updated=new Date().toISOString();
+  saveDB();
+  document.getElementById('comment-input').value='';
+  document.getElementById('dp-timeline').innerHTML=buildTimeline(activeTicket.log);
+  toast('Comment added','success');
+}
+function closeDetail(){var p=document.getElementById('detail-panel');if(p)p.classList.add('hidden');activeTicket=null;}
+function setSt(st){
+  if(!activeTicket)return;
+  var prev=activeTicket.st; if(prev===st){return;}
+  activeTicket.st=st; activeTicket.updated=new Date().toISOString();
+  activeTicket.log.push({type:'status',msg:'Status changed from '+prev+' to '+st,user:me.name,at:new Date().toISOString()});
+  saveDB();
+  openDetail(activeTicket.id); refreshCurrent(); toast('Updated to '+st,'success');
+}
+
+// ═══════════════════════════════════════════════════════
+//  TICKET CRUD
+// ═══════════════════════════════════════════════════════
+// Work is always assigned to a USER. Managers get visibility (their team's queries show on their dashboard),
+// but they are not the ones doing the queue work. Super Admin sees all users grouped by their manager.
+function fillAssignSelect(selectId, selectedVal){
+  var opts='<option value="">— Unassigned —</option>';
+  if(me.role==='superadmin'){
+    var mgrs=db.users.filter(function(u){return u.role==='manager';});
+    mgrs.forEach(function(m){
+      var team=usersOfManager(m.id);
+      if(team.length){
+        opts+='<optgroup label="Team of '+esc(m.name)+' — '+esc(m.dept)+'">'
+          +team.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+' · '+esc(u.dept)+'</option>';}).join('')
+          +'</optgroup>';
+      }
+    });
+    var orphans=db.users.filter(function(u){return u.role==='user'&&!u.managerId;});
+    if(orphans.length){
+      opts+='<optgroup label="Users without a manager">'+orphans.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+' · '+esc(u.dept)+'</option>';}).join('')+'</optgroup>';
+    }
+  } else if(me.role==='manager'){
+    opts+=usersOfManager(me.id).map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+' ('+esc(u.dept)+')</option>';}).join('');
+  }
+  var sel=document.getElementById(selectId);
+  sel.innerHTML=opts;
+  if(selectedVal!=null) sel.value=selectedVal;
+}
+function openNewTicketModal(type){
+  if(me.role==='user'){toast('Users cannot create tickets','error');return;}
+  document.getElementById('edit-ticket-id').value='';
+  document.getElementById('ticket-modal-title').textContent='New ticket';
+  document.getElementById('ticket-modal-save').innerHTML='<i class="ti ti-plus"></i> Create ticket';
+  document.getElementById('f-title').value='';document.getElementById('f-desc').value='';document.getElementById('f-req').value=me.name;
+  document.getElementById('f-type').value=(typeof type==='string'?type:'incident');
+  document.getElementById('f-priority').value='medium';
+  document.getElementById('f-status').value='open';
+  document.getElementById('f-dept').value=me.dept;
+  fillAssignSelect('f-asgn','');
+  document.getElementById('ticket-modal').style.display='flex';
+}
+function openEditTicketModal(id){
+  var t=db.tickets.find(function(x){return x.id===id;});
+  if(!t)return;
+  document.getElementById('edit-ticket-id').value=id;
+  document.getElementById('ticket-modal-title').textContent='Edit ticket: '+id;
+  document.getElementById('ticket-modal-save').innerHTML='<i class="ti ti-check"></i> Save changes';
+  document.getElementById('f-type').value=t.type;
+  document.getElementById('f-priority').value=t.pri;
+  document.getElementById('f-title').value=t.title;
+  document.getElementById('f-desc').value=t.desc;
+  document.getElementById('f-req').value=t.req;
+  document.getElementById('f-dept').value=t.dept;
+  document.getElementById('f-status').value=t.st;
+  fillAssignSelect('f-asgn', t.asgn||'');
+  document.getElementById('ticket-modal').style.display='flex';
+}
+function saveTicket(){
+  var title=document.getElementById('f-title').value.trim();
+  if(!title){toast('Title is required','error');return;}
+  var editId=document.getElementById('edit-ticket-id').value;
+  var now=new Date().toISOString();
+  var asgn=document.getElementById('f-asgn').value||null;
+  var mgrId=asgnManager(asgn);
+  if(editId){
+    var t=db.tickets.find(function(x){return x.id===editId;}); if(!t)return;
+    var changes=[];
+    if(t.title!==title)changes.push('Title updated');
+    if(t.st!==document.getElementById('f-status').value)changes.push('Status → '+document.getElementById('f-status').value);
+    if(t.pri!==document.getElementById('f-priority').value)changes.push('Priority → '+document.getElementById('f-priority').value);
+    if((t.asgn||'')!==(asgn||''))changes.push('Assigned → '+(asgn?userName(asgn):'Unassigned'));
+    t.type=document.getElementById('f-type').value; t.pri=document.getElementById('f-priority').value;
+    t.title=title; t.desc=document.getElementById('f-desc').value;
+    t.req=document.getElementById('f-req').value||t.req; t.dept=document.getElementById('f-dept').value;
+    t.asgn=asgn; t.managerId=mgrId; t.st=document.getElementById('f-status').value; t.updated=now;
+    if(changes.length)t.log.push({type:'edit',msg:'Edited by '+me.name+': '+changes.join(', '),user:me.name,at:now});
+    toast('Ticket updated','success');
+  } else {
+    var req=document.getElementById('f-req').value||me.name;
+    var nt={id:'TKT-'+(++db.seq),type:document.getElementById('f-type').value,pri:document.getElementById('f-priority').value,
+      title:title,desc:document.getElementById('f-desc').value,req:req,reqEmail:'',dept:document.getElementById('f-dept').value,
+      asgn:asgn,managerId:mgrId,st:document.getElementById('f-status').value,source:'internal',created:now,updated:now,
+      log:[{type:'created',msg:'Ticket created by '+me.name,user:me.name,at:now}]};
+    if(asgn) nt.log.push({type:'assign',msg:'Assigned to '+userName(asgn)+' by '+me.name,user:me.name,at:now});
+    db.tickets.push(nt);
+    toast('Ticket '+nt.id+' created','success');
+  }
+  saveDB(); closeModal('ticket-modal'); refreshCurrent();
+  if(activeTicket&&editId===activeTicket.id)openDetail(editId);
+}
+// derive managing manager from assignee
+function asgnManager(asgn){
+  if(!asgn)return null;
+  var u=userById(asgn); if(!u)return null;
+  if(u.role==='manager')return u.id;
+  if(u.role==='user')return u.managerId;
+  return null;
+}
+function deleteTicket(id){
+  if(me.role!=='superadmin'){toast('Only Super Admin can delete tickets','error');return;}
+  if(!confirm('Delete ticket '+id+'? This cannot be undone.'))return;
+  db.tickets=db.tickets.filter(function(t){return t.id!==id;});
+  saveDB();
+  if(activeTicket&&activeTicket.id===id)closeDetail();
+  refreshCurrent(); toast('Ticket deleted','info');
+}
+
+// ─── Assign modal ────────────────────────────────────────
+function openAssignModal(id){
+  if(me.role==='user'){toast('You cannot reassign work','error');return;}
+  var t=db.tickets.find(function(x){return x.id===id;}); if(!t)return;
+  if(me.role==='manager' && !usersOfManager(me.id).length){toast('You have no users to assign to yet','error');return;}
+  document.getElementById('assign-ticket-id').value=id;
+  fillAssignSelect('assign-to', t.asgn||'');
+  document.getElementById('assign-note').value='';
+  document.getElementById('assign-modal').style.display='flex';
+}
+function saveAssign(){
+  var id=document.getElementById('assign-ticket-id').value;
+  var t=db.tickets.find(function(x){return x.id===id;}); if(!t)return;
+  var prev=t.asgn, newA=document.getElementById('assign-to').value||null;
+  var note=document.getElementById('assign-note').value.trim();
+  t.asgn=newA; t.managerId=asgnManager(newA); t.updated=new Date().toISOString();
+  var msg=newA?('Assigned to '+userName(newA)+' by '+me.name):('Unassigned by '+me.name);
+  t.log.push({type:'assign',msg:msg+(note?' — '+note:''),user:me.name,at:new Date().toISOString()});
+  saveDB(); closeModal('assign-modal');
+  if(activeTicket&&activeTicket.id===id)openDetail(id);
+  refreshCurrent(); toast(newA?('Assigned to '+userName(newA)):'Unassigned','success');
+}
+
+// ═══════════════════════════════════════════════════════
+//  USER MANAGEMENT (super admin)
+// ═══════════════════════════════════════════════════════
+function onUserRoleChange(){
+  var role=document.getElementById('us-role').value;
+  document.getElementById('us-mgr-group').style.display=(role==='user')?'block':'none';
+}
+function fillManagerSelect(selected){
+  var mgrs=db.users.filter(function(u){return u.role==='manager';});
+  document.getElementById('us-manager').innerHTML=mgrs.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+' ('+esc(u.dept)+')</option>';}).join('')||'<option value="">— No managers yet —</option>';
+  if(selected)document.getElementById('us-manager').value=selected;
+}
+function openUserModal(id){
+  if(me.role!=='superadmin'){toast('Only Super Admin can manage users','error');return;}
+  fillManagerSelect();
+  if(id){
+    var u=userById(id); if(!u)return;
+    document.getElementById('edit-user-id').value=id;
+    document.getElementById('user-modal-title').textContent='Edit user: '+u.name;
+    document.getElementById('user-modal-save').innerHTML='<i class="ti ti-check"></i> Save changes';
+    document.getElementById('us-name').value=u.name;
+    document.getElementById('us-username').value=u.username;
+    document.getElementById('us-pass').value=u.password;
+    document.getElementById('us-dept').value=u.dept;
+    document.getElementById('us-role').value=u.role;
+    fillManagerSelect(u.managerId);
+  } else {
+    document.getElementById('edit-user-id').value='';
+    document.getElementById('user-modal-title').textContent='Create user';
+    document.getElementById('user-modal-save').innerHTML='<i class="ti ti-user-plus"></i> Create user';
+    ['us-name','us-username','us-pass'].forEach(function(x){document.getElementById(x).value='';});
+    document.getElementById('us-dept').value='IT';
+    document.getElementById('us-role').value='user';
+  }
+  onUserRoleChange();
+  document.getElementById('user-modal').style.display='flex';
+}
+function saveUser(){
+  var name=document.getElementById('us-name').value.trim();
+  var username=document.getElementById('us-username').value.trim().toLowerCase();
+  var pass=document.getElementById('us-pass').value;
+  var role=document.getElementById('us-role').value;
+  var dept=document.getElementById('us-dept').value;
+  var mgr=(role==='user')?(document.getElementById('us-manager').value||null):null;
+  if(!name||!username||!pass){toast('Name, username and password are required','error');return;}
+  if(role==='user'&&!mgr){toast('Assign this user to a manager','error');return;}
+  var editId=document.getElementById('edit-user-id').value;
+  var dupe=db.users.find(function(u){return u.username===username && u.id!==editId;});
+  if(dupe){toast('That username is already taken','error');return;}
+  if(editId){
+    var u=userById(editId); if(!u)return;
+    u.name=name;u.username=username;u.password=pass;u.role=role;u.dept=dept;u.managerId=mgr;
+    toast('User updated','success');
+  } else {
+    db.users.push({id:'U-'+Date.now().toString(36).toUpperCase(),username:username,password:pass,name:name,role:role,dept:dept,managerId:mgr});
+    toast('User "'+name+'" created','success');
+  }
+  saveDB(); closeModal('user-modal'); renderNav(); renderUsers();
+}
+function deleteUser(id){
+  var u=userById(id); if(!u)return;
+  if(u.id===me.id){toast('You cannot delete your own account','error');return;}
+  var assigned=db.tickets.filter(function(t){return t.asgn===id;}).length;
+  var msg='Delete user "'+u.name+'"?';
+  if(u.role==='manager'){var team=usersOfManager(id).length; if(team)msg+='\n\n'+team+' user(s) report to this manager — they will become unassigned to a manager.';}
+  if(assigned)msg+='\n\n'+assigned+' ticket(s) assigned to them will become unassigned.';
+  if(!confirm(msg))return;
+  // unassign tickets and orphan reports
+  db.tickets.forEach(function(t){if(t.asgn===id){t.asgn=null;t.managerId=asgnManager(null);t.log.push({type:'assign',msg:'Unassigned (account removed) by '+me.name,user:me.name,at:new Date().toISOString()});}});
+  if(u.role==='manager')db.users.forEach(function(x){if(x.managerId===id)x.managerId=null;});
+  db.users=db.users.filter(function(x){return x.id!==id;});
+  saveDB(); renderNav(); renderUsers(); toast('User deleted','info');
+}
+
+// ═══════════════════════════════════════════════════════
+//  EXPORT
+// ═══════════════════════════════════════════════════════
+function showSheetDialog(){document.getElementById('sheet-dialog').style.display='flex';}
+function buildRows(){
+  return visibleTickets().map(function(t){return {
+    id:t.id,title:t.title,type:t.type,pri:t.pri,st:t.st,req:t.req,dept:t.dept,
+    asgn:t.asgn?userName(t.asgn):'Unassigned',mgr:t.managerId?userName(t.managerId):'',
+    source:t.source,created:t.created.slice(0,16).replace('T',' ')};});
+}
+function buildCSV(){
+  var h='Ticket ID,Title,Type,Priority,Status,Requester,Department,Assigned To,Manager,Source,Created\n';
+  return h+buildRows().map(function(r){return [r.id,'"'+r.title.replace(/"/g,'""')+'"',r.type,r.pri,r.st,'"'+r.req+'"',r.dept,'"'+r.asgn+'"','"'+r.mgr+'"',r.source,r.created].join(',');}).join('\n');
+}
+function buildTSV(){
+  var h='Ticket ID\tTitle\tType\tPriority\tStatus\tRequester\tDepartment\tAssigned To\tManager\tSource\tCreated\n';
+  return h+buildRows().map(function(r){return [r.id,r.title,r.type,r.pri,r.st,r.req,r.dept,r.asgn,r.mgr,r.source,r.created].join('\t');}).join('\n');
+}
+function doExport(mode){
+  if(mode==='download'){downloadBlob(buildCSV(),'HG_Tickets_'+today()+'.csv');toast('CSV downloaded','success');}
+  if(mode==='clipboard'){
+    if(navigator.clipboard){navigator.clipboard.writeText(buildTSV()).then(function(){toast('Copied — paste into your sheet (Ctrl+V)','success');}).catch(function(){toast('Copy failed — try download','error');});}
+    else toast('Clipboard not available — use download','error');
+  }
+  closeModal('sheet-dialog');
+}
+function exportCSV(){downloadBlob(buildCSV(),'HG_Tickets_'+today()+'.csv');toast('CSV downloaded','success');}
+function downloadBlob(content,filename){
+  var blob=new Blob([content],{type:'text/csv'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+}
+function today(){return new Date().toISOString().slice(0,10);}
+
+// ═══════════════════════════════════════════════════════
+//  UTIL
+// ═══════════════════════════════════════════════════════
+function refreshCurrent(){ renderNav(); nav(currentView); }
+function closeModal(id){document.getElementById(id).style.display='none';}
+function toast(msg,type){
+  var wrap=document.getElementById('toasts');
+  var el=document.createElement('div');el.className='toast '+(type||'');
+  var icon={success:'check',error:'alert-circle',info:'info-circle'}[type]||'info-circle';
+  el.innerHTML='<i class="ti ti-'+icon+'" style="font-size:16px;flex-shrink:0"></i><span>'+esc(msg)+'</span>';
+  wrap.appendChild(el);
+  setTimeout(function(){el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},300);},3500);
+}
+function toggleTheme(){
+  var dark=document.documentElement.classList.toggle('dark');
+  ['theme-icon','theme-icon-login','theme-icon-landing','theme-icon-complaint'].forEach(function(id){var i=document.getElementById(id);if(i)i.className=dark?'ti ti-sun':'ti ti-moon';});
+  localStorage.setItem(THEME_KEY,dark?'dark':'light');
+}
+function loadTheme(){
+  if(localStorage.getItem(THEME_KEY)==='dark'){document.documentElement.classList.add('dark');
+    ['theme-icon','theme-icon-login','theme-icon-landing','theme-icon-complaint'].forEach(function(id){var i=document.getElementById(id);if(i)i.className='ti ti-sun';});}
+}
+
+// ─── Cross-tab sync ──────────────────────────────────────
+window.addEventListener('storage',function(e){
+  if(e.key===DB_KEY){ try{db=JSON.parse(e.newValue);}catch(err){return;} if(me&&document.getElementById('screen-app').classList.contains('active')){refreshCurrent();if(activeTicket){var still=db.tickets.find(function(t){return t.id===activeTicket.id;});if(still)openDetail(still.id);else closeDetail();}} }
+});
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+(function init(){
+  loadTheme();
+  // Storage init may be async (Supabase). Show landing immediately so user isn't staring at blank page.
+  showScreen('landing');
+  Promise.resolve(initStorage()).then(function(){
+    // If a session was open, resume it
+    var sid=localStorage.getItem(SESSION_KEY);
+    var found=sid && db && db.users ? db.users.find(function(u){return u.id===sid;}) : null;
+    if(found){ me=found; showScreen('app'); renderApp(); }
+    // Update the storage-mode indicator visible in Settings and the sync bar
+    updateStorageIndicator();
+  });
+})();
+function updateStorageIndicator(){
+  var msgEl=document.getElementById('sync-msg'); if(msgEl){
+    msgEl.innerHTML = useSupa
+      ? '<i class="ti ti-cloud-check" style="color:var(--green)"></i> Connected to Supabase — data syncs across all devices'
+      : '<i class="ti ti-device-desktop" style="color:var(--amber)"></i> Local mode — data lives in this browser only. See Settings to enable shared backend.';
+  }
+  var stateEl=document.getElementById('storage-state');
+  if(stateEl){
+    stateEl.innerHTML = useSupa
+      ? '<span class="badge resolved"><i class="ti ti-cloud-check"></i> Supabase — shared across devices</span>'
+      : '<span class="badge in-progress"><i class="ti ti-device-desktop"></i> Local browser storage</span>';
+  }
+}
+</script>
+</body>
+</html>
