@@ -149,6 +149,7 @@ tr.clickable:hover{background:var(--surface-1);cursor:pointer}
 .badge.training{background:var(--blue-bg);color:var(--blue-text)}
 .badge.requirement{background:var(--purple-bg);color:var(--purple-text)}
 .badge.query{background:var(--amber-bg);color:var(--amber-text)}
+.badge.purple{background:var(--purple-bg);color:var(--purple-text)}
 .badge.superadmin{background:var(--purple-bg);color:var(--purple-text)}
 .badge.manager{background:var(--blue-bg);color:var(--blue-text)}
 .badge.user{background:var(--gray-bg);color:var(--gray-text)}
@@ -814,7 +815,7 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
             <button class="btn primary" onclick="showSheetDialog()"><i class="ti ti-table-export"></i> Export</button>
           </div>
           <div class="content">
-            <div class="stats-grid">
+            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
               <div class="stat-card blue clickable" onclick="gotoTicketsFilter('open')">
                 <div class="stat-label"><i class="ti ti-inbox" style="font-size:12px"></i> Open</div>
                 <div class="stat-value" id="s-open">0</div><div class="stat-sub">Awaiting action</div>
@@ -829,9 +830,17 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
               </div>
               <div class="stat-card red clickable" onclick="gotoTicketsFilter('critical')">
                 <div class="stat-label"><i class="ti ti-alert-triangle" style="font-size:12px"></i> Critical</div>
-                <div class="stat-value" id="s-crit">0</div><div class="stat-sub">Needs attention</div>
+                <div class="stat-value" id="s-crit">0</div><div class="stat-sub">Marked critical or &gt; 1 day old</div>
+              </div>
+              <div class="stat-card purple clickable" id="sc-unassigned" onclick="gotoTicketsFilter('unassigned')" style="display:none">
+                <div class="stat-label"><i class="ti ti-user-question" style="font-size:12px"></i> Unassigned</div>
+                <div class="stat-value" id="s-unassigned">0</div><div class="stat-sub">No one working on these</div>
               </div>
             </div>
+            <div class="section-hdr" id="dash-charts-hdr" style="margin-top:6px"><h2>Overview charts</h2>
+              <button class="btn sm" onclick="nav('reports')">Full reports <i class="ti ti-arrow-right"></i></button>
+            </div>
+            <div class="report-grid" id="dash-charts" style="margin-bottom:18px"></div>
             <div class="section-hdr">
               <h2 id="dash-recent-title">Recent tickets</h2>
               <button class="btn sm" onclick="nav('tickets')">View all <i class="ti ti-arrow-right"></i></button>
@@ -860,7 +869,6 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
               <div class="chip chip-res" onclick="setFilter('resolved',this)"><i class="ti ti-circle-check"></i>Resolved</div>
               <div class="chip chip-cls" onclick="setFilter('closed',this)"><i class="ti ti-archive"></i>Closed</div>
               <div class="chip chip-cls" id="chip-unassigned" onclick="setFilter('unassigned',this)"><i class="ti ti-user-question"></i>Unassigned</div>
-              <div class="chip chip-inc" id="chip-complaints" onclick="setFilter('complaint',this)"><i class="ti ti-message-report"></i>Public complaints <span id="chip-cp-count" style="background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:2px"></span></div>
             </div>
             <div class="table-wrap">
               <table><thead><tr id="tickets-thead">
@@ -1132,6 +1140,23 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
       <button class="btn sm" onclick="closeModal('team-modal')"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body" id="team-modal-body"></div>
+  </div>
+</div>
+
+<!-- ══ EDIT MY ACCOUNT MODAL (any signed-in user) ══ -->
+<div class="modal-overlay" id="edit-me-modal" style="display:none" onclick="if(event.target===this)closeModal('edit-me-modal')">
+  <div class="modal" style="width:440px">
+    <div class="modal-header"><i class="ti ti-user-edit" style="color:var(--blue);font-size:18px"></i><h3>Edit my details</h3><button class="btn sm" onclick="closeModal('edit-me-modal')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Full name *</label><input class="form-control" id="em-name"></div>
+      <div class="form-group"><label class="form-label">Username *</label><input class="form-control" id="em-username"></div>
+      <div class="form-group"><label class="form-label">Email address</label><input class="form-control" id="em-email" type="email" placeholder="you@homelandgroup.org"></div>
+      <div style="font-size:11px;color:var(--text-muted)"><i class="ti ti-info-circle"></i> Changes save to the shared database. If you change your username, use the new one next time you sign in.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('edit-me-modal')">Cancel</button>
+      <button class="btn primary" onclick="saveMyAccount()"><i class="ti ti-check"></i> Save changes</button>
+    </div>
   </div>
 </div>
 
@@ -1436,6 +1461,36 @@ function userById(id){ return db.users.find(function(u){return u.id===id;})||nul
 function userName(id){ var u=userById(id); return u?u.name:'—'; }
 function usersOfManager(mid){ return db.users.filter(function(u){return u.role==='user'&&u.managerId===mid;}); }
 function initials(name){ return (name||'?').split(/\s+/).map(function(w){return w[0];}).join('').slice(0,2).toUpperCase(); }
+// Render a user's avatar: if they have a photo → show it; else fall back to initials.
+function avatarHtml(user, size){
+  size = size || 30;
+  var s = size + 'px';
+  if(user && user.photo){
+    return '<div class="avatar" style="width:'+s+';height:'+s+';padding:0;border:1px solid var(--border);overflow:hidden"><img src="'+user.photo+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>';
+  }
+  var fs = Math.max(9, Math.floor(size/2.5)) + 'px';
+  return '<div class="avatar" style="width:'+s+';height:'+s+';font-size:'+fs+'">'+initials(user?user.name:'?')+'</div>';
+}
+// Resize an uploaded image to a square thumbnail (JPEG) — keeps Supabase payload small.
+function resizeImageFile(file, size, quality, cb){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var canvas=document.createElement('canvas');
+      canvas.width=size; canvas.height=size;
+      var ctx=canvas.getContext('2d');
+      var scale=Math.max(size/img.width, size/img.height);
+      var sw=size/scale, sh=size/scale;
+      var sx=(img.width-sw)/2, sy=(img.height-sh)/2;
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
+      cb(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror=function(){cb(null);};
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 // Populate any <select> with the current departments list
 function fillDeptSelect(selectId, selectedVal){
   var sel=document.getElementById(selectId); if(!sel)return;
@@ -1838,10 +1893,18 @@ function renderNav(){
       var n=visibleTickets().filter(function(t){return t.st==='closed'||t.st==='resolved';}).length;
       badgeHtml=n?'<span class="nav-badge" style="background:var(--gray-bg);color:var(--gray-text)">'+n+'</span>':'';
     }
-    // Special items (like "Closed queries") jump to a filtered view instead of a distinct view
+    // Special items (like "Closed queries") jump to a filtered view instead of a distinct view.
+    // "Closed queries" also expands into Resolved + Closed sub-items so users can filter separately.
     if(item.special==='closed'){
-      var activeCls = (currentView==='tickets' && filter==='closed') ? ' active' : '';
+      var activeCls = (currentView==='tickets' && (filter==='closed'||filter==='resolved'||filter==='closed-all')) ? ' active' : '';
       html+='<div class="nav-item'+activeCls+'" onclick="openClosedQueries()"><i class="ti ti-'+item.icon+'"></i>'+item.label+badgeHtml+'</div>';
+      var vt2=visibleTickets();
+      var resCount=vt2.filter(function(t){return t.st==='resolved';}).length;
+      var clsCount=vt2.filter(function(t){return t.st==='closed';}).length;
+      var resActive=(currentView==='tickets'&&filter==='resolved')?' active':'';
+      var clsActive=(currentView==='tickets'&&filter==='closed')?' active':'';
+      html+='<div class="nav-sub'+resActive+'" onclick="openClosedByStatus(\'resolved\')"><i class="ti ti-circle-check"></i>Resolved<span class="sub-count">'+resCount+'</span></div>';
+      html+='<div class="nav-sub'+clsActive+'" onclick="openClosedByStatus(\'closed\')"><i class="ti ti-archive"></i>Closed<span class="sub-count">'+clsCount+'</span></div>';
       return;
     }
     html+='<div class="nav-item'+(item.v===currentView?' active':'')+'" data-view="'+item.v+'" onclick="nav(\''+item.v+'\')">'
@@ -1868,14 +1931,22 @@ function navByType(typeKey){
   renderTickets();
   renderNav();
 }
-// Jump to queries filtered by "closed" — for the sidebar "Closed queries" nav item.
-// Uses "closed" filter which shows tickets with status open|resolved|closed as "old".
+// Jump to queries filtered by "closed" — parent view combining resolved + closed
 function openClosedQueries(){
-  filter='closed';
+  filter='closed-all';   // custom filter: matches both st=resolved AND st=closed
+  nav('tickets');
+  document.querySelectorAll('#v-tickets .chip').forEach(function(c){c.classList.remove('active');});
+  renderTickets();
+  renderNav();
+}
+// Sub-nav: filter by one specific status (resolved OR closed)
+function openClosedByStatus(status){
+  filter=status;  // 'resolved' or 'closed' — matches existing filter logic
   nav('tickets');
   document.querySelectorAll('#v-tickets .chip').forEach(function(c){c.classList.remove('active');});
   var chips=document.querySelectorAll('#v-tickets .chip');
-  if(chips[4]) chips[4].classList.add('active');  // the "Closed" chip
+  var idx = status==='resolved' ? 3 : 4;
+  if(chips[idx]) chips[idx].classList.add('active');
   renderTickets();
   renderNav();
 }
@@ -1915,13 +1986,13 @@ function toggleSidebar(state){
 
 function gotoTicketsFilter(f){
   nav('tickets');
-  var map={'open':'open','in-progress':'in-progress','resolved':'resolved','critical':'all','complaint':'complaint'};
+  var map={'open':'open','in-progress':'in-progress','resolved':'resolved','critical':'all'};
   filter=map[f]||'all';
   document.querySelectorAll('#v-tickets .chip').forEach(function(c){c.classList.remove('active');});
-  var sel={'open':1,'in-progress':2,'resolved':3,'complaint':6}[f];
+  var sel={'open':1,'in-progress':2,'resolved':3}[f];
   var chips=document.querySelectorAll('#v-tickets .chip');
   if(sel&&chips[sel])chips[sel].classList.add('active'); else if(chips[0])chips[0].classList.add('active');
-  if(f==='critical'){ renderTicketsList(visibleTickets().filter(function(t){return t.pri==='critical';})); }
+  if(f==='critical'){ renderTicketsList(visibleTickets().filter(isCriticalTicket)); }
   else renderTickets();
 }
 
@@ -1929,8 +2000,12 @@ function gotoTicketsFilter(f){
 //  RENDER: whole app shell
 // ═══════════════════════════════════════════════════════
 function renderApp(){
-  // sidebar footer identity
-  document.getElementById('sb-avatar').textContent=initials(me.name);
+  // sidebar footer identity (shows photo if user uploaded one, else initials)
+  var sbEl=document.getElementById('sb-avatar');
+  if(sbEl){
+    var replacement = avatarHtml(me, 30).replace('class="avatar"','class="avatar" id="sb-avatar"');
+    sbEl.outerHTML = replacement;
+  }
   document.getElementById('sb-name').textContent=me.name;
   document.getElementById('sb-role').textContent={superadmin:'Super Admin',manager:'Manager · '+me.dept,user:'User · '+me.dept}[me.role];
 
@@ -1952,14 +2027,56 @@ function renderApp(){
   nav('dashboard');
 }
 
+// A ticket is "critical" if it's:
+//   • priority=critical AND still open/in-progress, OR
+//   • open/in-progress and older than 24 hours (overdue)
+function isCriticalTicket(t){
+  var pending = (t.st==='open' || t.st==='in-progress');
+  if(!pending) return false;
+  if(t.pri==='critical') return true;
+  return (Date.now() - new Date(t.created).getTime()) > 24*3600*1000;
+}
+// Compact bar charts shown right on the dashboard
+function renderDashboardCharts(vt){
+  var host=document.getElementById('dash-charts'); if(!host)return;
+  var byStatus={
+    'Open': vt.filter(function(t){return t.st==='open';}).length,
+    'In progress': vt.filter(function(t){return t.st==='in-progress';}).length,
+    'Resolved': vt.filter(function(t){return t.st==='resolved';}).length,
+    'Closed':   vt.filter(function(t){return t.st==='closed';}).length,
+    'Critical (open/overdue)': vt.filter(isCriticalTicket).length
+  };
+  var byPri={}; vt.forEach(function(t){byPri[t.pri]=(byPri[t.pri]||0)+1;});
+  var byType={}; vt.forEach(function(t){byType[t.type]=(byType[t.type]||0)+1;});
+  var byDept={}; vt.forEach(function(t){if(t.dept)byDept[t.dept]=(byDept[t.dept]||0)+1;});
+  var colors={incident:'var(--red)',change:'var(--purple)',request:'var(--blue)',problem:'var(--amber)',complaint:'var(--red)',error:'var(--red)',training:'var(--blue)',requirement:'var(--purple)',query:'var(--amber)',critical:'var(--red)',high:'var(--amber)',medium:'var(--blue)',low:'var(--gray-text)','Open':'var(--blue)','In progress':'var(--amber)','Resolved':'var(--green)','Closed':'var(--gray-text)','Critical (open/overdue)':'var(--red)'};
+  host.innerHTML=[
+    reportCard('Queries by status', byStatus, colors),
+    reportCard('Queries by priority', byPri, colors),
+    reportCard('Queries by type', byType, colors),
+    reportCard('Queries by department', byDept, {})
+  ].join('');
+}
+
 // ─── Dashboard ───────────────────────────────────────────
 function renderDashboard(){
   var vt=visibleTickets();
   var open=vt.filter(function(t){return t.st==='open';}).length;
   var inp=vt.filter(function(t){return t.st==='in-progress';}).length;
   var res=vt.filter(function(t){return t.st==='resolved';}).length;
-  var crit=vt.filter(function(t){return t.pri==='critical'&&(t.st==='open'||t.st==='in-progress');}).length;
+  var crit=vt.filter(isCriticalTicket).length;
+  var unassigned=vt.filter(function(t){return !t.asgn && (t.st==='open'||t.st==='in-progress');}).length;
   set('s-open',open);set('s-inp',inp);set('s-res',res);set('s-crit',crit);
+  var uCard=document.getElementById('sc-unassigned');
+  var uEl=document.getElementById('s-unassigned');
+  if(me.role==='user'){
+    if(uCard) uCard.style.display='none';
+  } else {
+    if(uCard) uCard.style.display='';
+    if(uEl) uEl.textContent=unassigned;
+  }
+  // Bar charts below the stat cards — quick visual overview
+  renderDashboardCharts(vt);
 
   var rows=vt.slice().sort(function(a,b){return new Date(b.updated)-new Date(a.updated);}).slice(0,8).map(function(t){
     return '<tr class="clickable" onclick="openDetail(\''+t.id+'\')">'
@@ -1976,15 +2093,15 @@ function renderDashboard(){
   if(me.role==='superadmin'){
     qa='<h2 style="font-size:14px;font-weight:600;margin-bottom:10px">Quick actions</h2><div class="qa-grid">'
       +'<div class="qa-card" onclick="openUserModal()"><i class="ti ti-user-plus" style="color:var(--blue)"></i><span>Create user / admin</span></div>'
-      +'<div class="qa-card" onclick="gotoTicketsFilter(\'complaint\')"><i class="ti ti-message-report" style="color:var(--red)"></i><span>Review public complaints</span></div>'
+      +'<div class="qa-card" onclick="nav(\'requests\')"><i class="ti ti-key" style="color:var(--amber)"></i><span>Password requests</span></div>'
       +'<div class="qa-card" onclick="openNewTicketModal()"><i class="ti ti-plus" style="color:var(--green)"></i><span>New query</span></div>'
       +'<div class="qa-card" onclick="nav(\'reports\')"><i class="ti ti-chart-bar" style="color:var(--purple)"></i><span>View reports</span></div></div>';
   } else if(me.role==='manager'){
     qa='<h2 style="font-size:14px;font-weight:600;margin-bottom:10px">Quick actions</h2><div class="qa-grid">'
-      +'<div class="qa-card" onclick="gotoTicketsFilter(\'complaint\')"><i class="ti ti-message-report" style="color:var(--red)"></i><span>Assign complaints</span></div>'
-      +'<div class="qa-card" onclick="nav(\'team\')"><i class="ti ti-users-group" style="color:var(--blue)"></i><span>My team</span></div>'
+      +'<div class="qa-card" onclick="nav(\'tickets\')"><i class="ti ti-inbox" style="color:var(--blue)"></i><span>Team queries</span></div>'
+      +'<div class="qa-card" onclick="nav(\'team\')"><i class="ti ti-users-group" style="color:var(--purple)"></i><span>My team</span></div>'
       +'<div class="qa-card" onclick="openNewTicketModal()"><i class="ti ti-plus" style="color:var(--green)"></i><span>New query</span></div>'
-      +'<div class="qa-card" onclick="nav(\'reports\')"><i class="ti ti-chart-bar" style="color:var(--purple)"></i><span>Team reports</span></div></div>';
+      +'<div class="qa-card" onclick="nav(\'reports\')"><i class="ti ti-chart-bar" style="color:var(--amber)"></i><span>Team reports</span></div></div>';
   } else {
     qa='<div class="info-box blue" style="margin-top:4px"><i class="ti ti-info-circle"></i> This is your personal dashboard. Open any item in <strong>My Work</strong> to update its status and add comments for your manager.</div>';
   }
@@ -2003,16 +2120,13 @@ function renderTickets(){
   var q=(document.getElementById('search')||{value:''}).value.toLowerCase();
   var list=visibleTickets().filter(function(t){
     if(filter==='unassigned' && t.asgn) return false;
-    if(filter==='complaint' && t.source!=='complaint') return false;
+    if(filter==='closed-all' && t.st!=='resolved' && t.st!=='closed') return false;
     if(filter.indexOf('type:')===0 && t.type !== filter.slice(5)) return false;
     if(['open','in-progress','resolved','closed'].indexOf(filter)>-1 && t.st!==filter) return false;
     if(q && t.title.toLowerCase().indexOf(q)===-1 && t.id.toLowerCase().indexOf(q)===-1 && (t.req||'').toLowerCase().indexOf(q)===-1) return false;
     return true;
   });
   renderTicketsList(list);
-  // keep the "Public complaints" chip count live
-  var cpEl=document.getElementById('chip-cp-count');
-  if(cpEl){var n=visibleTickets().filter(function(t){return t.source==='complaint'&&(t.st==='open'||t.st==='in-progress');}).length;cpEl.textContent=n?n:''; cpEl.style.display=n?'inline-block':'none';}
 }
 function renderTicketsList(list){
   list=list.slice().sort(function(a,b){return new Date(b.updated)-new Date(a.updated);});
@@ -2052,7 +2166,7 @@ function renderTeam(){
         +'<span style="font-size:10px;color:var(--text-muted)">'+age(t.created)+'</span></div>';
     }).join(''):'<div style="font-size:11px;color:var(--text-muted);padding:6px 0">No work assigned yet.</div>';
     return '<div class="team-card">'
-      +'<div class="team-card-head"><div class="avatar">'+initials(u.name)+'</div>'
+      +'<div class="team-card-head">'+avatarHtml(u,38)
         +'<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">'+esc(u.name)+'</div><div style="font-size:11px;color:var(--text-muted)">'+esc(u.dept)+' · @'+esc(u.username)+'</div></div></div>'
       +'<div class="team-mini-stats">'
         +'<div class="team-mini"><div class="n" style="color:var(--blue)">'+open+'</div><div class="l">Open</div></div>'
@@ -2108,7 +2222,7 @@ function renderUsers(){
     if(u.role==='manager') actions+='<button class="btn sm primary" onclick="showManagerTeam(\''+u.id+'\')" title="View downline team"><i class="ti ti-users-group"></i></button>';
     actions+='<button class="btn sm" onclick="openUserModal(\''+u.id+'\')" title="Edit"><i class="ti ti-edit"></i></button>';
     if(u.id!==me.id) actions+='<button class="btn sm danger" onclick="deleteUser(\''+u.id+'\')" title="Delete"><i class="ti ti-trash"></i></button>';
-    var nameCell='<div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="width:26px;height:26px;font-size:10px">'+initials(u.name)+'</div>'+esc(u.name);
+    var nameCell='<div style="display:flex;align-items:center;gap:8px">'+avatarHtml(u,26)+esc(u.name);
     if(u.role==='manager') nameCell+=' <span class="badge medium" style="margin-left:4px">Head of Dept</span>';
     nameCell+='</div>';
     var rowClass=(u.role==='manager')?' class="clickable" onclick="showManagerTeam(\''+u.id+'\')"':'';
@@ -2754,14 +2868,27 @@ function toggleSettingsItem(key){
 function renderSettings(){
   var items = [];
 
-  // My account (everyone)
+  // My account (everyone) — with profile picture + edit details
   items.push({
     key:'account', icon:'user-circle', title:'My account', sub:me.name+' · '+me.role,
     body:''
+      +'<div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;padding:10px;background:var(--surface-1);border-radius:10px">'
+        +'<div id="my-avatar-box">'+avatarHtml(me, 64)+'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-weight:600">'+esc(me.name)+'</div>'
+          +'<div style="font-size:12px;color:var(--text-muted)">@'+esc(me.username)+(me.email?' · '+esc(me.email):'')+'</div>'
+        +'</div>'
+        +'<div style="display:flex;flex-direction:column;gap:6px">'
+          +'<label class="btn sm" style="cursor:pointer" title="Upload a new photo"><i class="ti ti-camera"></i> Photo<input type="file" accept="image/*" style="display:none" onchange="uploadMyPhoto(this)"></label>'
+          +(me.photo?'<button class="btn sm danger" onclick="removeMyPhoto()" title="Remove"><i class="ti ti-trash"></i></button>':'')
+        +'</div>'
+      +'</div>'
       +'<div class="detail-row"><span class="lbl">Name</span><span>'+esc(me.name)+'</span></div>'
       +'<div class="detail-row"><span class="lbl">Username</span><span>@'+esc(me.username)+'</span></div>'
+      +'<div class="detail-row"><span class="lbl">Email</span><span>'+(me.email?esc(me.email):'<span style="color:var(--text-muted)">— not set —</span>')+'</span></div>'
       +'<div class="detail-row"><span class="lbl">Role</span><span>'+roleBadge(me.role)+'</span></div>'
       +'<div class="detail-row"><span class="lbl">Department</span><span>'+esc(me.dept)+'</span></div>'
+      +'<div style="margin-top:12px"><button class="btn primary" onclick="openEditMyAccountModal()"><i class="ti ti-edit"></i> Edit my details</button></div>'
   });
 
   // Change password (everyone)
@@ -2844,6 +2971,58 @@ function renderSettings(){
   }).join('');
 
   updateStorageIndicator();
+}
+
+// ─── Profile photo upload / remove ───────────────────────
+function uploadMyPhoto(input){
+  var file=input.files && input.files[0]; if(!file)return;
+  if(!/^image\//.test(file.type)){ toast('Please pick an image file','error'); input.value=''; return; }
+  if(file.size > 3*1024*1024){ toast('Image too large — max 3 MB','error'); input.value=''; return; }
+  resizeImageFile(file, 256, 0.75, function(dataUrl){
+    if(!dataUrl){ toast('Could not read image','error'); return; }
+    var u = db.users.find(function(x){return x.id===me.id;});
+    if(!u){ toast('Account not found','error'); return; }
+    u.photo = dataUrl; me.photo = dataUrl;
+    saveDB();
+    document.getElementById('sb-avatar').outerHTML = avatarHtml(me, 30).replace('class="avatar"','class="avatar" id="sb-avatar"');
+    renderSettings();
+    toast('Photo updated','success');
+  });
+  input.value='';
+}
+function removeMyPhoto(){
+  if(!confirm('Remove your profile photo?'))return;
+  var u = db.users.find(function(x){return x.id===me.id;});
+  if(u){ delete u.photo; delete me.photo; saveDB(); }
+  renderSettings();
+  document.getElementById('sb-avatar').outerHTML = avatarHtml(me, 30).replace('class="avatar"','class="avatar" id="sb-avatar"');
+  toast('Photo removed','info');
+}
+
+// ─── Edit my account (name / username / email) ───────────
+function openEditMyAccountModal(){
+  document.getElementById('em-name').value=me.name;
+  document.getElementById('em-username').value=me.username;
+  document.getElementById('em-email').value=me.email||'';
+  document.getElementById('edit-me-modal').style.display='flex';
+}
+function saveMyAccount(){
+  var newName=document.getElementById('em-name').value.trim();
+  var newUsername=document.getElementById('em-username').value.trim().toLowerCase();
+  var newEmail=document.getElementById('em-email').value.trim();
+  if(!newName||!newUsername){toast('Name and username are required','error');return;}
+  if(newEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)){toast('Email format looks invalid','error');return;}
+  // Check username uniqueness
+  var dupe=db.users.find(function(u){return u.username===newUsername && u.id!==me.id;});
+  if(dupe){toast('That username is already taken','error');return;}
+  var u=db.users.find(function(x){return x.id===me.id;});
+  if(!u){toast('Account not found','error');return;}
+  u.name=newName; u.username=newUsername; u.email=newEmail;
+  me.name=newName; me.username=newUsername; me.email=newEmail;
+  saveDB();
+  closeModal('edit-me-modal');
+  renderApp();  // rebuilds sidebar + settings with new data
+  toast('Details updated','success');
 }
 
 function changeMyPassword(){
@@ -2975,9 +3154,10 @@ function openDetail(id){
     attBody.innerHTML='';
   }
 
-  // assigned + reassign control
-  var asgnHtml='<span>'+ (t.asgn?esc(userName(t.asgn)):'Unassigned') +'</span>';
-  if(me.role!=='user') asgnHtml+='<button class="btn xs" style="margin-left:5px" onclick="openAssignModal(\''+t.id+'\')"><i class="ti ti-user-check"></i> Assign</button>';
+  // assigned + reassign control (respect the admin-lock rule)
+  var asgnHtml='<span>'+ (t.asgn?esc(userName(t.asgn)):'Unassigned') +(t.adminLocked?' <span class="badge purple" style="font-size:9px;padding:1px 5px">🔒 Locked</span>':'')+'</span>';
+  var canReassign = (me.role==='superadmin') || (me.role==='manager' && !(t.asgn===me.id && t.adminLocked));
+  if(canReassign) asgnHtml+='<button class="btn xs" style="margin-left:5px" onclick="openAssignModal(\''+t.id+'\')"><i class="ti ti-user-check"></i> Assign</button>';
   document.getElementById('dp-asgn-wrap').innerHTML=asgnHtml;
 
   // header actions
@@ -3032,25 +3212,67 @@ function closeDetail(){var p=document.getElementById('detail-panel');if(p)p.clas
 function setSt(st){
   if(!activeTicket)return;
   var prev=activeTicket.st; if(prev===st){return;}
-  activeTicket.st=st; activeTicket.updated=new Date().toISOString();
-  activeTicket.log.push({type:'status',msg:'Status changed from '+prev+' to '+st,user:me.name,at:new Date().toISOString()});
+  var tRef=activeTicket;
+  tRef.st=st; tRef.updated=new Date().toISOString();
+  tRef.log.push({type:'status',msg:'Status changed from '+prev+' to '+st,user:me.name,at:new Date().toISOString()});
   saveDB();
-  openDetail(activeTicket.id); refreshCurrent(); toast('Updated to '+st,'success');
+  openDetail(tRef.id); refreshCurrent(); toast('Updated to '+st,'success');
+  // Auto-offer email to requester when a ticket is resolved or closed
+  if((st==='resolved' || st==='closed') && tRef.reqEmail){
+    var label = st==='resolved' ? 'resolved' : 'closed';
+    var ok = confirm('Ticket '+tRef.id+' marked as '+label+'.\n\nEmail '+tRef.req+' ('+tRef.reqEmail+') to let them know?\n(Opens your default email app with a message pre-filled.)');
+    if(ok) notifyRequesterOfResolution(tRef.id, label);
+  }
+}
+// Compose a mailto notification to the ticket's requester informing them of resolution
+function notifyRequesterOfResolution(ticketId, statusLabel){
+  var t=db.tickets.find(function(x){return x.id===ticketId;}); if(!t || !t.reqEmail)return;
+  var typeLabel = {query:'Query',error:'Error',training:'Training',requirement:'Requirement',request:'Service request',change:'Change request',problem:'Problem',complaint:'Complaint'}[t.type] || t.type;
+  var subject = 'Homeland Helpdesk · '+t.id+' — '+statusLabel.charAt(0).toUpperCase()+statusLabel.slice(1);
+  var lastComment = (t.log||[]).slice().reverse().find(function(l){return l.type==='comment';});
+  var body = [
+    'Hello '+t.req+',',
+    '',
+    'Your Homeland Helpdesk ticket has been marked as '+statusLabel.toUpperCase()+'.',
+    '',
+    'Ticket:      '+t.id,
+    'Title:       '+t.title,
+    'Type:        '+typeLabel,
+    'Department:  '+t.dept+(t.subcat?' → '+t.subcat:''),
+    'Handled by:  '+(t.asgn?userName(t.asgn):'—')+' · '+me.name,
+    'Resolution:  '+statusLabel,
+    '',
+    (lastComment ? 'Latest update from our team:\n"'+lastComment.msg+'"\n\n' : ''),
+    'If the issue is not fully resolved, please reply to this email or raise a follow-up ticket.',
+    '',
+    '— The Homeland Helpdesk team'
+  ].join('\n');
+  window.location.href = 'mailto:'+encodeURIComponent(t.reqEmail)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  toast('Opening email to '+t.req+'…','success');
 }
 
 // ═══════════════════════════════════════════════════════
 //  TICKET CRUD
 // ═══════════════════════════════════════════════════════
-// Work is always assigned to a USER. Managers get visibility (their team's queries show on their dashboard),
-// but they are not the ones doing the queue work. Super Admin sees all users grouped by their manager.
+// Assignment rules:
+//   • Super Admin  — can assign to any Manager (locks the ticket to them, they can't re-delegate)
+//                    OR to any User (grouped under their manager)
+//   • Manager      — can self-assign OR delegate to a User in their team
+//                    (but a ticket that was assigned to them by Super Admin cannot be moved)
+//   • User         — cannot assign
 function fillAssignSelect(selectId, selectedVal){
   var opts='<option value="">— Unassigned —</option>';
   if(me.role==='superadmin'){
     var mgrs=db.users.filter(function(u){return u.role==='manager';});
+    if(mgrs.length){
+      opts+='<optgroup label="Assign to a Manager (they must handle it themselves)">'
+        +mgrs.map(function(m){return '<option value="'+m.id+'">'+esc(m.name)+' — Head of '+esc(m.dept)+'</option>';}).join('')
+        +'</optgroup>';
+    }
     mgrs.forEach(function(m){
       var team=usersOfManager(m.id);
       if(team.length){
-        opts+='<optgroup label="Team of '+esc(m.name)+' — '+esc(m.dept)+'">'
+        opts+='<optgroup label="Or delegate to a User under '+esc(m.name)+' — '+esc(m.dept)+'">'
           +team.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+' · '+esc(u.dept)+'</option>';}).join('')
           +'</optgroup>';
       }
@@ -3060,7 +3282,6 @@ function fillAssignSelect(selectId, selectedVal){
       opts+='<optgroup label="Users without a manager">'+orphans.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+' · '+esc(u.dept)+'</option>';}).join('')+'</optgroup>';
     }
   } else if(me.role==='manager'){
-    // Managers can either handle it themselves OR delegate to one of their team users
     opts+='<optgroup label="Handle it yourself"><option value="'+me.id+'">'+esc(me.name)+' — Me (Head of '+esc(me.dept)+')</option></optgroup>';
     var team=usersOfManager(me.id);
     if(team.length){
@@ -3152,9 +3373,13 @@ function deleteTicket(id){
 
 // ─── Assign modal ────────────────────────────────────────
 function openAssignModal(id){
-  if(me.role==='user'){toast('You cannot reassign work','error');return;}
+  if(me.role==='user'){toast('Users cannot reassign work','error');return;}
   var t=db.tickets.find(function(x){return x.id===id;}); if(!t)return;
-  if(me.role==='manager' && !usersOfManager(me.id).length){toast('You have no users to assign to yet','error');return;}
+  // Rule: if Super Admin assigned this directly to me (manager), I can't move it
+  if(me.role==='manager' && t.asgn===me.id && t.adminLocked){
+    toast('This was assigned to you by Super Admin — only they can reassign. You can still handle it and close it.','info');
+    return;
+  }
   document.getElementById('assign-ticket-id').value=id;
   fillAssignSelect('assign-to', t.asgn||'');
   document.getElementById('assign-note').value='';
@@ -3166,7 +3391,11 @@ function saveAssign(){
   var prev=t.asgn, newA=document.getElementById('assign-to').value||null;
   var note=document.getElementById('assign-note').value.trim();
   t.asgn=newA; t.managerId=asgnManager(newA); t.updated=new Date().toISOString();
-  var msg=newA?('Assigned to '+userName(newA)+' by '+me.name):('Unassigned by '+me.name);
+  // Lock ticket to the manager if Super Admin assigned it directly to one — prevents re-delegation
+  var newAssignee = newA ? userById(newA) : null;
+  if(me.role==='superadmin' && newAssignee && newAssignee.role==='manager') t.adminLocked = true;
+  else if(newA) delete t.adminLocked;
+  var msg=newA?('Assigned to '+userName(newA)+' by '+me.name)+(t.adminLocked?' (locked to this manager)':''):('Unassigned by '+me.name);
   t.log.push({type:'assign',msg:msg+(note?' — '+note:''),user:me.name,at:new Date().toISOString()});
   saveDB(); closeModal('assign-modal');
   if(activeTicket&&activeTicket.id===id)openDetail(id);
