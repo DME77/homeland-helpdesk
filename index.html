@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IT HelpDesk — Homeland Group</title>
+<title>Homeland Helpdesk</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
 <!-- Supabase JS client (used only if HG_SUPABASE_URL + HG_SUPABASE_KEY are set below) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -53,6 +55,13 @@ html.dark body{background:#141413;color:#f0f0ee}
 .nav-item.active{background:var(--blue-bg);color:var(--blue-text);font-weight:500}
 .nav-item i{font-size:17px;flex-shrink:0}
 .nav-badge{margin-left:auto;background:var(--red-bg);color:var(--red-text);font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;min-width:20px;text-align:center}
+/* Sub-nav items (query type filters below the main Queries link) */
+.nav-sub{display:flex;align-items:center;gap:8px;padding:5px 10px 5px 34px;margin:1px 8px;border-radius:6px;cursor:pointer;font-size:12px;color:var(--text-muted);user-select:none;transition:all .1s}
+.nav-sub:hover{background:var(--surface-1);color:var(--text-secondary)}
+.nav-sub.active{background:var(--blue-bg);color:var(--blue-text);font-weight:600}
+.nav-sub i{font-size:12px}
+.nav-sub .sub-count{margin-left:auto;font-size:10px;color:var(--text-muted);font-weight:600}
+.nav-sub.active .sub-count{color:var(--blue-text)}
 .sidebar-footer{margin-top:auto;padding:12px;border-top:1px solid var(--border)}
 .user-row{display:flex;align-items:center;gap:8px}
 .avatar{width:30px;height:30px;border-radius:50%;background:var(--blue-bg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--blue-text);flex-shrink:0;border:1px solid var(--blue-border)}
@@ -136,6 +145,10 @@ tr.clickable:hover{background:var(--surface-1);cursor:pointer}
 .badge.request{background:var(--blue-bg);color:var(--blue-text)}
 .badge.problem{background:var(--amber-bg);color:var(--amber-text)}
 .badge.complaint{background:var(--red-bg);color:var(--red-text)}
+.badge.error{background:var(--red-bg);color:var(--red-text)}
+.badge.training{background:var(--blue-bg);color:var(--blue-text)}
+.badge.requirement{background:var(--purple-bg);color:var(--purple-text)}
+.badge.query{background:var(--amber-bg);color:var(--amber-text)}
 .badge.superadmin{background:var(--purple-bg);color:var(--purple-text)}
 .badge.manager{background:var(--blue-bg);color:var(--blue-text)}
 .badge.user{background:var(--gray-bg);color:var(--gray-text)}
@@ -581,6 +594,7 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
       </a>
       <div class="land-nav-actions">
         <div class="land-theme" onclick="toggleTheme()" title="Toggle theme"><i class="ti ti-moon" id="theme-icon-landing" style="font-size:16px"></i></div>
+        <button class="land-btn outline" onclick="showScreen('track')"><i class="ti ti-search"></i> Track ticket</button>
         <button class="land-btn outline" onclick="goLoginAs('user')">User Login</button>
         <button class="land-btn dark" onclick="goLoginAs('admin')">Admin Login</button>
       </div>
@@ -630,7 +644,10 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
       <div class="form-group"><label class="form-label">Password</label>
         <input class="form-control" id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <button class="btn primary block" onclick="doLogin()"><i class="ti ti-login-2"></i> Sign in</button>
-      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:14px">Authorised users only. Contact your Super Admin for access.</div>
+      <div style="text-align:center;margin-top:12px">
+        <button class="link-btn" onclick="openForgotPassword()"><i class="ti ti-key"></i> Forgot password?</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px">Authorised users only. Contact your Super Admin for access.</div>
     </div>
     <div class="auth-foot">
       <button class="link-btn" onclick="showScreen('landing')"><i class="ti ti-arrow-left"></i> Back to home</button>
@@ -662,27 +679,33 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
           <input class="form-control" id="cp-email" type="email" placeholder="you@homelandgroup.org"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label class="form-label">Department *</label>
+          <select class="form-control" id="cp-dept" onchange="fillSubcatSelect('cp-subcat', this.value)"></select></div>
+        <div class="form-group" style="display:none"><label class="form-label">Sub-category</label>
+          <select class="form-control" id="cp-subcat"></select></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label class="form-label">Query type *</label>
           <select class="form-control" id="cp-type">
-            <option value="complaint">Complaint</option>
-            <option value="incident">Incident</option>
+            <option value="query">Query</option>
+            <option value="error">Error</option>
+            <option value="training">Training</option>
+            <option value="requirement">Requirement</option>
             <option value="request">Service request</option>
             <option value="change">Change request</option>
             <option value="problem">Problem</option>
           </select></div>
-        <div class="form-group"><label class="form-label">Department *</label>
-          <select class="form-control" id="cp-dept"></select></div>
-      </div>
-      <div class="form-row">
         <div class="form-group"><label class="form-label">Priority *</label>
           <select class="form-control" id="cp-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="critical">Critical — urgent</option></select></div>
-        <div class="form-group"><label class="form-label">&nbsp;</label>
-          <div style="font-size:11px;color:var(--text-muted);padding-top:9px"><i class="ti ti-info-circle"></i> Your query will go to the department's manager for review.</div></div>
       </div>
+      <div class="form-group"><label class="form-label">Attach image (optional)</label>
+        <input class="form-control" type="file" id="cp-image" accept="image/*" onchange="previewComplaintImage(this)" style="padding:5px 8px">
+        <div id="cp-image-preview" style="margin-top:6px"></div></div>
       <div class="form-group"><label class="form-label">Subject *</label>
         <input class="form-control" id="cp-title" placeholder="Brief summary of your issue…"></div>
       <div class="form-group"><label class="form-label">Describe the problem *</label>
         <textarea class="form-control" id="cp-desc" placeholder="What happened, when it started, any error messages, what you've tried…" rows="4"></textarea></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:-4px;margin-bottom:12px"><i class="ti ti-info-circle"></i> Your query will auto-route to the department's manager for review.</div>
       <button class="btn primary block" onclick="submitComplaint()"><i class="ti ti-send"></i> Submit complaint</button>
     </div>
     <div class="auth-body" id="complaint-success" style="display:none">
@@ -692,12 +715,45 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
         <p>Thank you — your complaint has been logged and is now visible to our admin and manager team.</p>
         <div class="track-code" id="cp-track"></div>
         <p style="font-size:12px">Keep this reference number to follow up on your complaint.</p>
-        <button class="btn" onclick="resetComplaint()"><i class="ti ti-plus"></i> Submit another</button>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:6px">
+          <button class="btn primary" onclick="trackFromSuccess()"><i class="ti ti-search"></i> Track this ticket</button>
+          <button class="btn" onclick="resetComplaint()"><i class="ti ti-plus"></i> Submit another</button>
+        </div>
       </div>
     </div>
     <div class="auth-foot">
       <button class="link-btn" onclick="showScreen('landing')"><i class="ti ti-arrow-left"></i> Back to home</button>
       <button class="link-btn" onclick="showScreen('login')">Sign in →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ TRACK TICKET (public) ═════════ -->
+<div class="screen" id="screen-track">
+  <div class="page-topbar">
+    <a class="brand-link" onclick="goHome()">
+      <div class="brand-mark"><img src="logo.png" alt="Homeland" onerror="this.onerror=null;this.src='Logo.png'" width="38" height="38" style="object-fit:contain;display:block"></div>
+      <div class="brand-name">Homeland <span class="accent">Helpdesk</span></div>
+    </a>
+    <div class="spacer"></div>
+    <div class="top-theme" onclick="toggleTheme()" title="Toggle theme"><i class="ti ti-moon" id="theme-icon-track" style="font-size:15px"></i></div>
+  </div>
+  <div class="auth-card wide">
+    <div class="auth-head">
+      <h1>Track your ticket</h1>
+      <div class="sub">Enter your ticket reference (e.g. <code>TKT-1023</code>) to see its current status and activity.</div>
+    </div>
+    <div class="auth-body">
+      <div class="form-row">
+        <div class="form-group" style="grid-column:span 2"><label class="form-label">Ticket reference *</label>
+          <input class="form-control" id="track-id" placeholder="TKT-…" onkeydown="if(event.key==='Enter')doTrack()"></div>
+      </div>
+      <button class="btn primary block" onclick="doTrack()"><i class="ti ti-search"></i> Track</button>
+      <div id="track-result" style="margin-top:16px"></div>
+    </div>
+    <div class="auth-foot">
+      <button class="link-btn" onclick="showScreen('landing')"><i class="ti ti-arrow-left"></i> Back to home</button>
+      <button class="link-btn" onclick="showScreen('complaint')">Raise a new complaint →</button>
     </div>
   </div>
 </div>
@@ -821,6 +877,7 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
           <div class="topbar">
             <h1>User management</h1>
             <button class="btn" onclick="downloadUsersCSV()"><i class="ti ti-download"></i> Download CSV</button>
+            <button class="btn" onclick="openBulkImportModal()"><i class="ti ti-upload"></i> Import CSV</button>
             <button class="btn primary" onclick="openUserModal()"><i class="ti ti-user-plus"></i> Create user / admin</button>
           </div>
           <div class="content">
@@ -834,8 +891,28 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
             <div class="section-hdr"><h2 id="users-section-title">All accounts</h2></div>
             <div class="table-wrap">
               <table><thead><tr>
-                <th>Name</th><th>Username</th><th>Role</th><th>Department</th><th>Reports to</th><th>Open work</th><th style="min-width:140px">Actions</th>
+                <th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Department</th><th>Reports to</th><th>Open</th><th style="min-width:140px">Actions</th>
               </tr></thead><tbody id="users-tbody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ PASSWORD RESET REQUESTS (super admin) ═══ -->
+        <div id="v-requests" class="view" style="display:none;flex-direction:column">
+          <div class="topbar">
+            <h1>Password reset requests</h1>
+          </div>
+          <div class="content">
+            <div class="stats-grid">
+              <div class="stat-card red"><div class="stat-label">Pending</div><div class="stat-value" id="pr-pending">0</div></div>
+              <div class="stat-card green"><div class="stat-label">Approved</div><div class="stat-value" id="pr-approved">0</div></div>
+              <div class="stat-card amber"><div class="stat-label">Rejected</div><div class="stat-value" id="pr-rejected">0</div></div>
+              <div class="stat-card blue"><div class="stat-label">Total</div><div class="stat-value" id="pr-total">0</div></div>
+            </div>
+            <div class="section-hdr"><h2>All requests</h2></div>
+            <div class="table-wrap">
+              <table><thead><tr><th>When</th><th>Requester</th><th>Username</th><th>Reason</th><th>Status</th><th style="min-width:120px">Actions</th></tr></thead>
+              <tbody id="pr-tbody"></tbody></table>
             </div>
           </div>
         </div>
@@ -916,11 +993,16 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
             <div class="detail-row"><span class="lbl">Assigned to</span><span id="dp-asgn-wrap"></span></div>
             <div class="detail-row"><span class="lbl">Manager</span><span id="dp-mgr"></span></div>
             <div class="detail-row"><span class="lbl">Department</span><span id="dp-dept"></span></div>
+            <div class="detail-row" id="dp-subcat-row" style="display:none"><span class="lbl">Sub-category</span><span id="dp-subcat"></span></div>
             <div class="detail-row"><span class="lbl">Created</span><span id="dp-created"></span></div>
           </div>
           <div class="detail-section">
             <div class="detail-section-label">Description</div>
             <div class="detail-desc" id="dp-desc"></div>
+          </div>
+          <div class="detail-section" id="dp-attach-section" style="display:none">
+            <div class="detail-section-label">Attachments</div>
+            <div id="dp-attachments"></div>
           </div>
           <div class="detail-section" id="dp-status-section">
             <div class="detail-section-label">Update status</div>
@@ -953,7 +1035,15 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
       <input type="hidden" id="edit-ticket-id">
       <div class="form-row">
         <div class="form-group"><label class="form-label">Type *</label>
-          <select class="form-control" id="f-type"><option value="incident">Incident</option><option value="request">Service request</option><option value="change">Change request</option><option value="problem">Problem</option><option value="complaint">Complaint</option></select></div>
+          <select class="form-control" id="f-type">
+            <option value="query">Query</option>
+            <option value="error">Error</option>
+            <option value="training">Training</option>
+            <option value="requirement">Requirement</option>
+            <option value="request">Service request</option>
+            <option value="change">Change request</option>
+            <option value="problem">Problem</option>
+          </select></div>
         <div class="form-group"><label class="form-label">Priority *</label>
           <select class="form-control" id="f-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
       </div>
@@ -1023,6 +1113,82 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
   </div>
 </div>
 
+<!-- ══ FORGOT PASSWORD REQUEST MODAL (public) ══ -->
+<div class="modal-overlay" id="forgot-modal" style="display:none" onclick="if(event.target===this)closeModal('forgot-modal')">
+  <div class="modal" style="width:440px">
+    <div class="modal-header"><i class="ti ti-key" style="color:var(--amber);font-size:18px"></i><h3>Forgot password</h3><button class="btn sm" onclick="closeModal('forgot-modal')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px">Submit a password reset request. Your Super Admin will review it and set a new password for you.</p>
+      <div class="form-group"><label class="form-label">Username or Employee ID *</label>
+        <input class="form-control" id="fp-username" placeholder="Your login username"></div>
+      <div class="form-group"><label class="form-label">Your name *</label>
+        <input class="form-control" id="fp-name" placeholder="Full name"></div>
+      <div class="form-group"><label class="form-label">Reason (optional)</label>
+        <textarea class="form-control" id="fp-reason" placeholder="e.g. Forgot my password after vacation" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('forgot-modal')">Cancel</button>
+      <button class="btn primary" onclick="submitForgotPassword()"><i class="ti ti-send"></i> Send request</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN RESOLVE PASSWORD REQUEST MODAL ══ -->
+<div class="modal-overlay" id="pr-modal" style="display:none" onclick="if(event.target===this)closeModal('pr-modal')">
+  <div class="modal" style="width:420px">
+    <div class="modal-header"><i class="ti ti-key" style="color:var(--blue);font-size:18px"></i><h3>Set new password</h3><button class="btn sm" onclick="closeModal('pr-modal')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="pr-id">
+      <div id="pr-summary" style="background:var(--surface-1);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px"></div>
+      <div class="form-group"><label class="form-label">New password *</label>
+        <input class="form-control" id="pr-newpass" placeholder="At least 6 characters"></div>
+      <div style="font-size:11px;color:var(--text-muted)">Share the new password with the user through a secure channel. They can change it again from their own Settings after logging in.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn danger" onclick="rejectPasswordRequest()">Reject</button>
+      <button class="btn primary" onclick="approvePasswordRequest()"><i class="ti ti-check"></i> Approve &amp; set password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BULK USER IMPORT MODAL (super admin) ══ -->
+<div class="modal-overlay" id="bulk-import-modal" style="display:none" onclick="if(event.target===this)closeModal('bulk-import-modal')">
+  <div class="modal wide">
+    <div class="modal-header">
+      <i class="ti ti-upload" style="color:var(--blue);font-size:18px"></i>
+      <h3>Import users from CSV</h3>
+      <button class="btn sm" onclick="closeModal('bulk-import-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px">Upload a CSV file to create many users at once. Column order (first row must be the header):</p>
+      <div style="background:var(--surface-1);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:11px;margin-bottom:12px;overflow-x:auto;white-space:nowrap">Name,Username,Password,Role,Department,ManagerUsername</div>
+      <div class="info-box blue">
+        <strong>Field rules:</strong><br>
+        • <strong>Role</strong> must be one of: <code>superadmin</code>, <code>manager</code>, or <code>user</code><br>
+        • <strong>Department</strong> must match an existing department (see Settings → Departments)<br>
+        • <strong>ManagerUsername</strong> is required only for role=user, and must be an existing manager's username. Leave blank otherwise.
+      </div>
+      <div style="margin:14px 0">
+        <button class="btn" onclick="downloadUserImportTemplate()"><i class="ti ti-download"></i> Download blank template (CSV)</button>
+      </div>
+      <div style="border:2px dashed var(--border-strong);border-radius:10px;padding:20px;text-align:center;margin-bottom:14px" onclick="document.getElementById('bulk-csv-file').click()" ondragover="event.preventDefault();this.style.background='var(--surface-1)'" ondragleave="this.style.background=''" ondrop="event.preventDefault();this.style.background='';handleBulkFile(event.dataTransfer.files[0])">
+        <i class="ti ti-file-spreadsheet" style="font-size:28px;color:var(--text-muted);display:block;margin-bottom:8px"></i>
+        <div style="font-size:13px;color:var(--text-secondary)"><strong>Click to select CSV file</strong> — or drag &amp; drop here</div>
+        <input type="file" id="bulk-csv-file" accept=".csv" style="display:none" onchange="handleBulkFile(event.target.files[0])">
+      </div>
+      <div id="bulk-preview" style="display:none">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Preview — review before importing</div>
+        <div class="table-wrap" style="max-height:280px;overflow-y:auto"><table id="bulk-preview-table"></table></div>
+        <div id="bulk-summary" style="margin-top:10px;font-size:12px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('bulk-import-modal')">Cancel</button>
+      <button class="btn primary" id="bulk-import-btn" disabled onclick="doBulkImport()"><i class="ti ti-check"></i> Import valid rows</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ USER MODAL (super admin) ══ -->
 <div class="modal-overlay" id="user-modal" style="display:none" onclick="if(event.target===this)closeModal('user-modal')">
   <div class="modal">
@@ -1038,9 +1204,14 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
         <div class="form-group"><label class="form-label">Username *</label><input class="form-control" id="us-username" placeholder="e.g. priya"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label class="form-label">Email address</label><input class="form-control" id="us-email" type="email" placeholder="e.g. priya@homelandgroup.org"></div>
         <div class="form-group"><label class="form-label">Password *</label><input class="form-control" id="us-pass" placeholder="Set a password"></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label class="form-label">Department</label>
           <select class="form-control" id="us-dept"></select></div>
+        <div class="form-group"><label class="form-label">&nbsp;</label>
+          <div style="font-size:11px;color:var(--text-muted);padding-top:9px"><i class="ti ti-mail"></i> Email is used to notify them when queries are assigned.</div></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Role *</label>
@@ -1131,19 +1302,45 @@ function seedDB(){
       {id:'U-ADMIN', username:'SA261', password:'Homeland@77', name:'Vivek', role:'superadmin', dept:'Administration', managerId:null}
     ],
     tickets:[],
-    departments:['Administration','IT','HR','Finance','Operations','Management','Construction','Security'],
+    departments:[
+      {name:'Administration', subs:[]},
+      {name:'IT',             subs:['Network','Hardware','Software','Email']},
+      {name:'HR',             subs:['Recruitment','Payroll','Leave & Attendance']},
+      {name:'Finance',        subs:['Payroll','Invoices','Reimbursement']},
+      {name:'Operations',     subs:[]},
+      {name:'Management',     subs:[]},
+      {name:'Construction',   subs:[]},
+      {name:'Security',       subs:[]}
+    ],
+    passwordRequests:[],
     seq:1000
   };
 }
-// Defensive: any older data blob that predates `departments` gets a default list
+// Defensive: normalise older data blobs so newer features don't crash on legacy shape.
 function ensureDefaults(){
   if(!db) return;
-  if(!Array.isArray(db.departments) || !db.departments.length){
-    db.departments=['Administration','IT','HR','Finance','Operations','Management','Construction','Security'];
-  }
   if(!Array.isArray(db.users)) db.users=[];
   if(!Array.isArray(db.tickets)) db.tickets=[];
+  if(!Array.isArray(db.passwordRequests)) db.passwordRequests=[];
+  if(!Array.isArray(db.departments) || !db.departments.length){
+    db.departments=[
+      {name:'Administration', subs:[]},
+      {name:'IT', subs:['Network','Hardware','Software','Email']},
+      {name:'HR', subs:['Recruitment','Payroll','Leave & Attendance']},
+      {name:'Finance', subs:['Payroll','Invoices','Reimbursement']},
+      {name:'Operations', subs:[]},
+      {name:'Management', subs:[]},
+      {name:'Construction', subs:[]},
+      {name:'Security', subs:[]}
+    ];
+  }
+  // Legacy departments stored as plain strings → convert to {name, subs:[]}
+  db.departments = db.departments.map(function(d){ return (typeof d==='string') ? {name:d, subs:[]} : {name:d.name, subs:Array.isArray(d.subs)?d.subs:[]}; });
 }
+// Helpers for the sub-category feature
+function deptNames(){ return (db.departments||[]).map(function(d){return d.name;}); }
+function deptByName(name){ return (db.departments||[]).find(function(d){return d.name===name;}) || null; }
+function deptSubs(name){ var d=deptByName(name); return d && Array.isArray(d.subs) ? d.subs : []; }
 
 // ─── Persistence — Supabase (shared) if configured, else localStorage ───
 function initStorage(){
@@ -1220,9 +1417,17 @@ function initials(name){ return (name||'?').split(/\s+/).map(function(w){return 
 // Populate any <select> with the current departments list
 function fillDeptSelect(selectId, selectedVal){
   var sel=document.getElementById(selectId); if(!sel)return;
-  var list=(db&&db.departments)||[];
-  sel.innerHTML=list.map(function(d){return '<option value="'+esc(d)+'"'+(d===selectedVal?' selected':'')+'>'+esc(d)+'</option>';}).join('');
-  if(selectedVal && list.indexOf(selectedVal)===-1){ sel.insertAdjacentHTML('afterbegin','<option value="'+esc(selectedVal)+'" selected>'+esc(selectedVal)+' (removed)</option>'); }
+  var names=deptNames();
+  sel.innerHTML=names.map(function(n){return '<option value="'+esc(n)+'"'+(n===selectedVal?' selected':'')+'>'+esc(n)+'</option>';}).join('');
+  if(selectedVal && names.indexOf(selectedVal)===-1){ sel.insertAdjacentHTML('afterbegin','<option value="'+esc(selectedVal)+'" selected>'+esc(selectedVal)+' (removed)</option>'); }
+}
+// Populate a sub-category select based on the currently chosen department
+function fillSubcatSelect(selectId, deptName, selectedVal){
+  var sel=document.getElementById(selectId); if(!sel)return;
+  var subs=deptSubs(deptName);
+  var wrap=sel.closest('.form-group'); if(wrap) wrap.style.display=subs.length?'':'none';
+  sel.innerHTML='<option value="">— None —</option>'+subs.map(function(s){return '<option value="'+esc(s)+'"'+(s===selectedVal?' selected':'')+'>'+esc(s)+'</option>';}).join('');
+  if(selectedVal) sel.value=selectedVal;
 }
 // Find the manager for a given department (used to auto-route complaints)
 function deptManager(deptName){ return db.users.find(function(u){return u.role==='manager' && u.dept===deptName;}) || null; }
@@ -1262,7 +1467,7 @@ function age(iso){var ms=Date.now()-new Date(iso).getTime();if(ms<3600000)return
 function badge(cls,label){return '<span class="badge '+cls+'">'+esc(label)+'</span>';}
 function stBadge(s){var m={open:'Open','in-progress':'In progress',resolved:'Resolved',closed:'Closed',approved:'Approved',rejected:'Rejected',pending:'Pending'};return badge(s,m[s]||s);}
 function priBadge(p){return badge(p,p.charAt(0).toUpperCase()+p.slice(1));}
-function typeBadge(t){var m={incident:'Incident',change:'Change',request:'Request',problem:'Problem',complaint:'Complaint'};return badge(t,m[t]||t);}
+function typeBadge(t){var m={incident:'Incident',change:'Change',request:'Request',problem:'Problem',complaint:'Complaint',error:'Error',training:'Training',requirement:'Requirement',query:'Query'};return badge(t,m[t]||t);}
 function roleBadge(r){var m={superadmin:'Super Admin',manager:'Manager',user:'User'};return badge(r,m[r]||r);}
 function asgnLabel(t){return t.asgn?esc(userName(t.asgn)):'<span class="badge unassigned">Unassigned</span>';}
 function set(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
@@ -1272,12 +1477,16 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 //  AUTH
 // ═══════════════════════════════════════════════════════
 function showScreen(name){
-  ['loading','landing','login','complaint','app'].forEach(function(s){
+  ['loading','landing','login','complaint','app','track'].forEach(function(s){
     var el=document.getElementById('screen-'+s); if(!el)return;
     el.classList.toggle('active', s===name);
     el.style.display = (s===name)?(s==='app'?'block':'flex'):'none';
   });
-  if(name==='complaint' && db) fillDeptSelect('cp-dept');  // load current dept list
+  if(name==='complaint' && db){
+    fillDeptSelect('cp-dept');
+    fillSubcatSelect('cp-subcat', document.getElementById('cp-dept').value);
+  }
+  if(name==='track'){ var r=document.getElementById('track-result'); if(r) r.innerHTML=''; var idEl=document.getElementById('track-id'); if(idEl)idEl.value=''; }
 }
 // Clicking the top-left brand: signed-in users go to their dashboard, everyone else to the landing.
 function goHome(){
@@ -1353,6 +1562,24 @@ function logout(){
 // ═══════════════════════════════════════════════════════
 //  PUBLIC COMPLAINT LANDING
 // ═══════════════════════════════════════════════════════
+// Cache the base64-encoded image between file selection and form submission
+var _cpImageData=null;
+function previewComplaintImage(input){
+  var file=input.files && input.files[0]; if(!file){_cpImageData=null;document.getElementById('cp-image-preview').innerHTML='';return;}
+  if(file.size > 2*1024*1024){ toast('Image too large — please pick one under 2 MB','error'); input.value=''; _cpImageData=null; return; }
+  var reader=new FileReader();
+  reader.onload=function(e){
+    _cpImageData=e.target.result;
+    document.getElementById('cp-image-preview').innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:6px;background:var(--surface-1);border-radius:8px"><img src="'+_cpImageData+'" style="width:56px;height:56px;object-fit:cover;border-radius:6px"><div style="font-size:11px;flex:1"><div style="font-weight:600">'+esc(file.name)+'</div><div style="color:var(--text-muted)">'+Math.round(file.size/1024)+' KB · attached</div></div><button type="button" class="btn xs danger" onclick="clearComplaintImage()"><i class="ti ti-x"></i></button></div>';
+  };
+  reader.readAsDataURL(file);
+}
+function clearComplaintImage(){
+  _cpImageData=null;
+  var el=document.getElementById('cp-image'); if(el)el.value='';
+  var pv=document.getElementById('cp-image-preview'); if(pv)pv.innerHTML='';
+}
+
 function submitComplaint(){
   var name=document.getElementById('cp-name').value.trim();
   var email=document.getElementById('cp-email').value.trim();
@@ -1363,23 +1590,161 @@ function submitComplaint(){
   if(!name||!email||!title||!desc){ toast('Please fill in all required fields','error'); return; }
   var mgr=deptManager(dept);
   var now=new Date().toISOString();
+  var typeLabel = {query:'Query',error:'Error',training:'Training request',requirement:'Requirement',request:'Service request',change:'Change request',problem:'Problem'}[qtype] || qtype;
+  var subcat=(document.getElementById('cp-subcat')||{value:''}).value;
   var t={
     id:'TKT-'+(++db.seq), type:qtype, pri:document.getElementById('cp-priority').value,
-    title:title, desc:desc, req:name, reqEmail:email, dept:dept,
+    title:title, desc:desc, req:name, reqEmail:email, dept:dept, subcat:subcat||null,
     asgn:null, managerId: mgr?mgr.id:null, st:'open', source:'complaint', created:now, updated:now,
-    log:[{type:'created', msg:(qtype==='complaint'?'Complaint':qtype.charAt(0).toUpperCase()+qtype.slice(1))+' submitted by '+name+' ('+email+') for '+dept+' department', user:name, at:now}]
+    attachments: _cpImageData ? [{data:_cpImageData, at:now, by:name}] : [],
+    log:[{type:'created', msg:typeLabel+' submitted by '+name+' ('+email+') for '+dept+(subcat?' → '+subcat:'')+' department'+(_cpImageData?' (with image attached)':''), user:name, at:now}]
   };
   if(mgr) t.log.push({type:'route', msg:'Auto-routed to '+mgr.name+' (Head of '+dept+')', user:'System', at:now});
   db.tickets.push(t); saveDB();
   document.getElementById('cp-track').textContent=t.id;
   document.getElementById('complaint-form-wrap').style.display='none';
   document.getElementById('complaint-success').style.display='block';
+  clearComplaintImage();
 }
+// ─── Forgot password (public) → Password requests (admin) ────
+function openForgotPassword(){
+  document.getElementById('fp-username').value=document.getElementById('login-user').value||'';
+  document.getElementById('fp-name').value='';
+  document.getElementById('fp-reason').value='';
+  document.getElementById('forgot-modal').style.display='flex';
+}
+function submitForgotPassword(){
+  var username=document.getElementById('fp-username').value.trim();
+  var name=document.getElementById('fp-name').value.trim();
+  var reason=document.getElementById('fp-reason').value.trim();
+  if(!username||!name){ toast('Enter your username and name','error'); return; }
+  if(!db.passwordRequests) db.passwordRequests=[];
+  var req = {
+    id: 'PWR-'+Date.now().toString(36).toUpperCase(),
+    username: username, name: name, reason: reason,
+    status: 'pending', at: new Date().toISOString(), resolvedBy: null, resolvedAt: null
+  };
+  db.passwordRequests.push(req); saveDB();
+  closeModal('forgot-modal');
+  toast('Request sent — your admin will set a new password shortly','success');
+}
+function renderPasswordRequests(){
+  if(me.role!=='superadmin') return;
+  var list=(db.passwordRequests||[]).slice().sort(function(a,b){return new Date(b.at)-new Date(a.at);});
+  set('pr-pending',  list.filter(function(r){return r.status==='pending';}).length);
+  set('pr-approved', list.filter(function(r){return r.status==='approved';}).length);
+  set('pr-rejected', list.filter(function(r){return r.status==='rejected';}).length);
+  set('pr-total',    list.length);
+  var tbody=document.getElementById('pr-tbody');
+  if(!list.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty" style="padding:24px"><i class="ti ti-key-off"></i><p>No password reset requests yet.</p></div></td></tr>'; return; }
+  tbody.innerHTML=list.map(function(r){
+    var stCls={pending:'in-progress',approved:'resolved',rejected:'rejected'}[r.status]||'closed';
+    var stLabel={pending:'Pending',approved:'Approved',rejected:'Rejected'}[r.status]||r.status;
+    var actions='';
+    if(r.status==='pending'){
+      actions='<button class="btn sm primary" onclick="openPasswordResetModal(\''+r.id+'\')"><i class="ti ti-key"></i> Handle</button>';
+    } else {
+      actions='<span style="font-size:11px;color:var(--text-muted)">by '+esc(r.resolvedBy||'—')+' · '+age(r.resolvedAt||r.at)+'</span>';
+    }
+    return '<tr>'
+      +'<td style="font-size:12px;color:var(--text-muted)">'+age(r.at)+'</td>'
+      +'<td style="font-weight:500">'+esc(r.name)+'</td>'
+      +'<td style="font-family:monospace;font-size:12px">@'+esc(r.username)+'</td>'
+      +'<td style="font-size:12px">'+esc(r.reason||'—')+'</td>'
+      +'<td>'+badge(stCls,stLabel)+'</td>'
+      +'<td>'+actions+'</td></tr>';
+  }).join('');
+}
+function openPasswordResetModal(id){
+  var r=(db.passwordRequests||[]).find(function(x){return x.id===id;});
+  if(!r){toast('Request not found','error');return;}
+  var u=db.users.find(function(x){return x.username.toLowerCase()===r.username.toLowerCase();});
+  document.getElementById('pr-id').value=id;
+  document.getElementById('pr-newpass').value='';
+  document.getElementById('pr-summary').innerHTML=
+    '<strong>'+esc(r.name)+'</strong> (@'+esc(r.username)+')<br>'
+    +(u?('Account found: '+roleBadge(u.role)+' · '+esc(u.dept)):'<span style="color:var(--red)">⚠ No account with that username</span>')
+    +(r.reason?'<div style="margin-top:6px;color:var(--text-secondary)">Reason: '+esc(r.reason)+'</div>':'');
+  document.getElementById('pr-modal').style.display='flex';
+}
+function approvePasswordRequest(){
+  var id=document.getElementById('pr-id').value;
+  var newP=document.getElementById('pr-newpass').value;
+  if(!newP || newP.length<6){toast('Password must be at least 6 characters','error');return;}
+  var r=db.passwordRequests.find(function(x){return x.id===id;}); if(!r)return;
+  var u=db.users.find(function(x){return x.username.toLowerCase()===r.username.toLowerCase();});
+  if(!u){toast('No account exists for that username — please reject and contact the user','error');return;}
+  u.password=newP;
+  r.status='approved'; r.resolvedBy=me.name; r.resolvedAt=new Date().toISOString(); r.newPassword=newP;
+  saveDB(); closeModal('pr-modal'); renderPasswordRequests(); renderNav();
+  toast('Password updated for '+u.name+' — share it with them securely','success');
+}
+function rejectPasswordRequest(){
+  var id=document.getElementById('pr-id').value;
+  var r=db.passwordRequests.find(function(x){return x.id===id;}); if(!r)return;
+  r.status='rejected'; r.resolvedBy=me.name; r.resolvedAt=new Date().toISOString();
+  saveDB(); closeModal('pr-modal'); renderPasswordRequests(); renderNav();
+  toast('Request rejected','info');
+}
+
+// ─── Public ticket tracking ─────────────────────────────
+function trackFromSuccess(){
+  var id=document.getElementById('cp-track').textContent.trim();
+  showScreen('track');
+  setTimeout(function(){ var el=document.getElementById('track-id'); if(el){el.value=id; doTrack();} }, 60);
+}
+function doTrack(){
+  var raw=(document.getElementById('track-id').value||'').trim();
+  if(!raw){ toast('Enter a ticket reference','error'); return; }
+  // Accept "1023" or "tkt-1023" — normalise to TKT-####
+  var id = raw.toUpperCase();
+  if(!/^TKT-/.test(id)) id = 'TKT-' + id.replace(/^TKT[-\s]*/i,'');
+  var t = db && db.tickets ? db.tickets.find(function(x){return x.id===id;}) : null;
+  var out=document.getElementById('track-result');
+  if(!t){
+    out.innerHTML='<div class="info-box" style="background:var(--red-bg);color:var(--red-text);border:1px solid var(--red-border)"><i class="ti ti-alert-circle"></i> No ticket found with reference <strong>'+esc(id)+'</strong>. Double-check the number.</div>';
+    return;
+  }
+  var mgr = t.managerId ? userName(t.managerId) : (t.dept?('Head of '+t.dept):'Unassigned');
+  var asg = t.asgn ? userName(t.asgn) : 'Not yet assigned to an individual';
+  var lastLog = t.log && t.log.length ? t.log[t.log.length-1] : null;
+  var typeLabel = {query:'Query',error:'Error',training:'Training',requirement:'Requirement',request:'Service request',change:'Change request',problem:'Problem',complaint:'Complaint',incident:'Incident'}[t.type] || t.type;
+  var statusExplain = {open:'Received · awaiting first action', 'in-progress':'Actively being worked on', resolved:'Marked resolved — please confirm', closed:'Closed', approved:'Approved', rejected:'Rejected'}[t.st] || t.st;
+  var attHtml = (t.attachments && t.attachments.length) ? '<div style="margin-top:12px"><strong style="font-size:11px;text-transform:uppercase;color:var(--text-muted)">Attachments</strong><br>'
+    + t.attachments.map(function(a){var s=(typeof a==='string')?a:a.data;return '<a href="'+s+'" target="_blank"><img src="'+s+'" style="max-width:200px;border-radius:6px;margin-top:6px;border:1px solid var(--border)"></a>';}).join(' ') + '</div>' : '';
+  out.innerHTML=''
+    +'<div style="background:var(--surface-1);border-radius:12px;padding:16px;margin-bottom:14px">'
+      +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
+        +'<span style="font-family:monospace;font-size:14px;font-weight:700;color:var(--blue)">'+esc(t.id)+'</span>'
+        +typeBadge(t.type)+priBadge(t.pri)+stBadge(t.st)
+      +'</div>'
+      +'<div style="font-size:16px;font-weight:600;margin-bottom:4px">'+esc(t.title)+'</div>'
+      +'<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">'+esc(t.desc||'')+'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;font-size:12px">'
+        +'<div><strong>Submitted by:</strong><br>'+esc(t.req)+(t.reqEmail?' · '+esc(t.reqEmail):'')+'</div>'
+        +'<div><strong>Department:</strong><br>'+esc(t.dept)+'</div>'
+        +'<div><strong>Query type:</strong><br>'+esc(typeLabel)+'</div>'
+        +'<div><strong>Reviewing manager:</strong><br>'+esc(mgr)+'</div>'
+        +'<div><strong>Assigned to:</strong><br>'+esc(asg)+'</div>'
+        +'<div><strong>Created:</strong><br>'+new Date(t.created).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>'
+      +'</div>'
+      +attHtml
+    +'</div>'
+    +'<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px">'
+      +'<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Current stage</div>'
+      +'<div style="font-size:14px;font-weight:600;margin-bottom:4px">'+esc(statusExplain)+'</div>'
+      +(lastLog ? '<div style="font-size:12px;color:var(--text-secondary)"><strong>Last activity:</strong> '+esc(lastLog.msg)+' <span style="color:var(--text-muted)">('+age(lastLog.at)+' by '+esc(lastLog.user)+')</span></div>' : '')
+    +'</div>'
+    +'<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Full activity timeline ('+((t.log||[]).length)+')</div>'
+    +'<div class="timeline">'+buildTimeline(t.log||[])+'</div>';
+}
+
 function resetComplaint(){
   ['cp-name','cp-email','cp-title','cp-desc'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('cp-priority').value='medium';
-  document.getElementById('cp-type').value='complaint';
+  document.getElementById('cp-type').value='query';
   fillDeptSelect('cp-dept');
+  clearComplaintImage();
   document.getElementById('complaint-form-wrap').style.display='block';
   document.getElementById('complaint-success').style.display='none';
 }
@@ -1388,13 +1753,16 @@ function resetComplaint(){
 //  NAVIGATION (role-based menus)
 // ═══════════════════════════════════════════════════════
 // One term across the app: "Queries". Complaints from the public form are queries with source='complaint'.
+// The special `special:'closed'` action navigates to tickets view with status=closed applied.
 var NAV_CONFIG={
   superadmin:[
     {sec:'Main'},
     {v:'dashboard',  icon:'layout-dashboard', label:'Dashboard'},
     {v:'tickets',    icon:'ticket',           label:'All Queries', badge:'open'},
+    {special:'closed', icon:'archive',        label:'Closed queries', badge:'closed'},
     {sec:'Administration'},
     {v:'users',      icon:'users',            label:'User Management'},
+    {v:'requests',   icon:'key',              label:'Password Requests', badge:'requests'},
     {v:'reports',    icon:'chart-bar',        label:'Reports'},
     {sec:'Config'},
     {v:'settings',   icon:'settings',         label:'Settings'}
@@ -1403,6 +1771,7 @@ var NAV_CONFIG={
     {sec:'Main'},
     {v:'dashboard',  icon:'layout-dashboard', label:'Dashboard'},
     {v:'tickets',    icon:'ticket',           label:'Team Queries', badge:'open'},
+    {special:'closed', icon:'archive',        label:'Closed queries', badge:'closed'},
     {sec:'Team'},
     {v:'team',       icon:'users-group',      label:'My Team'},
     {v:'reports',    icon:'chart-bar',        label:'Reports'},
@@ -1413,12 +1782,24 @@ var NAV_CONFIG={
     {sec:'Main'},
     {v:'dashboard',  icon:'layout-dashboard', label:'My Dashboard'},
     {v:'tickets',    icon:'checklist',        label:'My Queries', badge:'open'},
+    {special:'closed', icon:'archive',        label:'Closed queries', badge:'closed'},
     {sec:'Config'},
     {v:'settings',   icon:'settings',         label:'Settings'}
   ]
 };
 var currentView='dashboard';
 
+// Query types shown as sub-nav items under the main Queries link.
+// Each maps to a filter chip in the queries view.
+var TYPE_SUBNAV = [
+  {key:'query',       label:'Query',           icon:'help-circle'},
+  {key:'error',       label:'Error',           icon:'alert-triangle'},
+  {key:'training',    label:'Training',        icon:'school'},
+  {key:'requirement', label:'Requirement',     icon:'clipboard-list'},
+  {key:'request',     label:'Service request', icon:'tool'},
+  {key:'change',      label:'Change request',  icon:'git-branch'},
+  {key:'problem',     label:'Problem',         icon:'bug'}
+];
 function renderNav(){
   var cfg=NAV_CONFIG[me.role], html='';
   cfg.forEach(function(item){
@@ -1427,16 +1808,58 @@ function renderNav(){
     if(item.badge==='open'){
       var n=visibleTickets().filter(function(t){return t.st==='open'||t.st==='in-progress';}).length;
       badgeHtml=n?'<span class="nav-badge">'+n+'</span>':'';
+    } else if(item.badge==='requests'){
+      var n=(db.passwordRequests||[]).filter(function(r){return r.status==='pending';}).length;
+      badgeHtml=n?'<span class="nav-badge">'+n+'</span>':'';
+    } else if(item.badge==='closed'){
+      var n=visibleTickets().filter(function(t){return t.st==='closed'||t.st==='resolved';}).length;
+      badgeHtml=n?'<span class="nav-badge" style="background:var(--gray-bg);color:var(--gray-text)">'+n+'</span>':'';
+    }
+    // Special items (like "Closed queries") jump to a filtered view instead of a distinct view
+    if(item.special==='closed'){
+      var activeCls = (currentView==='tickets' && filter==='closed') ? ' active' : '';
+      html+='<div class="nav-item'+activeCls+'" onclick="openClosedQueries()"><i class="ti ti-'+item.icon+'"></i>'+item.label+badgeHtml+'</div>';
+      return;
     }
     html+='<div class="nav-item'+(item.v===currentView?' active':'')+'" data-view="'+item.v+'" onclick="nav(\''+item.v+'\')">'
       +'<i class="ti ti-'+item.icon+'"></i>'+item.label+badgeHtml+'</div>';
+    // Expand the "tickets" (Queries) item into per-type sub-nav so users can jump straight to a type
+    if(item.v==='tickets'){
+      var vt=visibleTickets();
+      TYPE_SUBNAV.forEach(function(t){
+        var count = vt.filter(function(x){return x.type===t.key;}).length;
+        if(!count && me.role==='user') return;  // hide empty types for regular users to keep it clean
+        var active = (currentView==='tickets' && filter==='type:'+t.key) ? ' active' : '';
+        html+='<div class="nav-sub'+active+'" onclick="navByType(\''+t.key+'\')"><i class="ti ti-'+t.icon+'"></i>'+t.label+'<span class="sub-count">'+count+'</span></div>';
+      });
+    }
   });
   document.getElementById('nav-container').innerHTML=html;
+}
+// Navigate to the queries view and apply a type filter — called from the sidebar sub-nav
+function navByType(typeKey){
+  filter='type:'+typeKey;
+  nav('tickets');
+  // clear old chips + rebuild "type" active state via renderNav
+  document.querySelectorAll('#v-tickets .chip').forEach(function(c){c.classList.remove('active');});
+  renderTickets();
+  renderNav();
+}
+// Jump to queries filtered by "closed" — for the sidebar "Closed queries" nav item.
+// Uses "closed" filter which shows tickets with status open|resolved|closed as "old".
+function openClosedQueries(){
+  filter='closed';
+  nav('tickets');
+  document.querySelectorAll('#v-tickets .chip').forEach(function(c){c.classList.remove('active');});
+  var chips=document.querySelectorAll('#v-tickets .chip');
+  if(chips[4]) chips[4].classList.add('active');  // the "Closed" chip
+  renderTickets();
+  renderNav();
 }
 
 function nav(v){
   currentView=v;
-  ['dashboard','tickets','team','users','reports','settings'].forEach(function(x){
+  ['dashboard','tickets','team','users','requests','reports','settings'].forEach(function(x){
     var el=document.getElementById('v-'+x); if(el) el.style.display=(x===v?'flex':'none');
   });
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.toggle('active', n.getAttribute('data-view')===v);});
@@ -1447,6 +1870,7 @@ function nav(v){
   if(v==='tickets')renderTickets();
   if(v==='team')renderTeam();
   if(v==='users')renderUsers();
+  if(v==='requests')renderPasswordRequests();
   if(v==='reports')renderReports();
   if(v==='settings')renderSettings();
 }
@@ -1549,12 +1973,14 @@ function setFilter(f,el){
   document.querySelectorAll('#v-tickets .chip').forEach(function(c){c.classList.remove('active');});
   if(el)el.classList.add('active');
   renderTickets();
+  renderNav();  // clears the sidebar type sub-nav active state
 }
 function renderTickets(){
   var q=(document.getElementById('search')||{value:''}).value.toLowerCase();
   var list=visibleTickets().filter(function(t){
     if(filter==='unassigned' && t.asgn) return false;
     if(filter==='complaint' && t.source!=='complaint') return false;
+    if(filter.indexOf('type:')===0 && t.type !== filter.slice(5)) return false;
     if(['open','in-progress','resolved','closed'].indexOf(filter)>-1 && t.st!==filter) return false;
     if(q && t.title.toLowerCase().indexOf(q)===-1 && t.id.toLowerCase().indexOf(q)===-1 && (t.req||'').toLowerCase().indexOf(q)===-1) return false;
     return true;
@@ -1647,10 +2073,13 @@ function renderUsers(){
   if(userFilter.dept!=='all') title += ' · ' + userFilter.dept;
   set('users-section-title', title);
 
-  if(!list.length){document.getElementById('users-tbody').innerHTML='<tr><td colspan="7"><div class="empty"><i class="ti ti-user-off"></i><p>No accounts match</p></div></td></tr>';return;}
+  if(!list.length){document.getElementById('users-tbody').innerHTML='<tr><td colspan="8"><div class="empty"><i class="ti ti-user-off"></i><p>No accounts match</p></div></td></tr>';return;}
   document.getElementById('users-tbody').innerHTML=list.map(function(u){
     var openWork=db.tickets.filter(function(t){return t.asgn===u.id&&(t.st==='open'||t.st==='in-progress');}).length;
     var reportsTo=u.managerId?esc(userName(u.managerId)):'—';
+    var emailCell = u.email
+      ? '<a href="mailto:'+encodeURIComponent(u.email)+'" onclick="event.stopPropagation()" style="color:var(--blue);text-decoration:underline;font-size:11px"><i class="ti ti-mail" style="font-size:11px"></i> '+esc(u.email)+'</a>'
+      : '<span style="font-size:11px;color:var(--text-muted)">—</span>';
     var actions='';
     if(u.role==='manager') actions+='<button class="btn sm primary" onclick="showManagerTeam(\''+u.id+'\')" title="View downline team"><i class="ti ti-users-group"></i></button>';
     actions+='<button class="btn sm" onclick="openUserModal(\''+u.id+'\')" title="Edit"><i class="ti ti-edit"></i></button>';
@@ -1662,6 +2091,7 @@ function renderUsers(){
     return '<tr'+rowClass+'>'
       +'<td style="font-weight:500">'+nameCell+'</td>'
       +'<td style="font-family:monospace;font-size:12px">@'+esc(u.username)+'</td>'
+      +'<td>'+emailCell+'</td>'
       +'<td>'+roleBadge(u.role)+'</td>'
       +'<td style="font-size:12px">'+esc(u.dept)+'</td>'
       +'<td style="font-size:12px">'+reportsTo+(u.role==='manager'?' <span style="font-size:10px;color:var(--text-muted)">('+usersOfManager(u.id).length+' reports)</span>':'')+'</td>'
@@ -1705,11 +2135,167 @@ function showManagerTeam(mid){
   document.getElementById('team-modal').style.display='flex';
 }
 
+// ─── Bulk CSV user import ────────────────────────────────
+var _bulkParsedRows = [];
+function openBulkImportModal(){
+  if(me.role!=='superadmin'){toast('Only Super Admin can import users','error');return;}
+  _bulkParsedRows=[];
+  document.getElementById('bulk-csv-file').value='';
+  document.getElementById('bulk-preview').style.display='none';
+  document.getElementById('bulk-summary').innerHTML='';
+  document.getElementById('bulk-import-btn').disabled=true;
+  document.getElementById('bulk-import-modal').style.display='flex';
+}
+function downloadUserImportTemplate(){
+  var header='Name,Username,Password,Role,Department,ManagerUsername,Email\n';
+  var sample=''
+    +'Ahmed Khan,ahmed,Change@123,manager,IT,,ahmed@homelandgroup.org\n'
+    +'Priya Sharma,priya,Change@123,user,Finance,ahmed,priya@homelandgroup.org\n'
+    +'Dev Sharma,dev,Change@123,user,IT,ahmed,dev@homelandgroup.org\n';
+  downloadBlob(header+sample,'HG_users_template.csv');
+  toast('Template downloaded','success');
+}
+// Minimal CSV parser that handles quoted fields with commas + embedded quotes
+function parseCSV(text){
+  var rows=[]; var row=[]; var cur=''; var inQ=false;
+  for(var i=0;i<text.length;i++){
+    var c=text[i];
+    if(inQ){
+      if(c==='"' && text[i+1]==='"'){ cur+='"'; i++; }
+      else if(c==='"'){ inQ=false; }
+      else cur+=c;
+    } else {
+      if(c==='"'){ inQ=true; }
+      else if(c===','){ row.push(cur); cur=''; }
+      else if(c==='\n' || c==='\r'){
+        if(c==='\r' && text[i+1]==='\n') i++;
+        row.push(cur); cur=''; rows.push(row); row=[];
+      } else cur+=c;
+    }
+  }
+  if(cur.length||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(function(r){return r.some(function(c){return String(c).trim();});}); // drop empty
+}
+function handleBulkFile(file){
+  if(!file){ return; }
+  if(!/\.csv$/i.test(file.name)){ toast('Please choose a .csv file','error'); return; }
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try { _bulkParsedRows = validateBulkRows(parseCSV(e.target.result)); }
+    catch(err){ toast('Could not read the file: '+err.message,'error'); return; }
+    renderBulkPreview();
+  };
+  reader.readAsText(file);
+}
+function validateBulkRows(rows){
+  if(!rows.length){ throw new Error('File appears empty'); }
+  var header = rows[0].map(function(h){return String(h||'').trim().toLowerCase();});
+  var need = ['name','username','password','role','department'];
+  var missing = need.filter(function(k){return header.indexOf(k)===-1;});
+  if(missing.length){ throw new Error('Missing required column(s): '+missing.join(', ')); }
+  var idx = {}; header.forEach(function(h,i){idx[h]=i;});
+
+  var valid=[], invalid=[];
+  var existingUsernames = db.users.map(function(u){return u.username.toLowerCase();});
+  var validRoles = ['superadmin','manager','user'];
+  var validDepts = (db.departments||[]).map(function(d){return d.toLowerCase();});
+  var managerMap = {};
+  db.users.filter(function(u){return u.role==='manager';}).forEach(function(u){managerMap[u.username.toLowerCase()]=u.id;});
+  // Also consider managers being imported in the same batch
+  rows.slice(1).forEach(function(r){
+    var role=String(r[idx.role]||'').trim().toLowerCase();
+    var un=String(r[idx.username]||'').trim().toLowerCase();
+    if(role==='manager' && un) managerMap[un]='__PENDING__';
+  });
+
+  for(var i=1;i<rows.length;i++){
+    var r = rows[i];
+    var name = String(r[idx.name]||'').trim();
+    var username = String(r[idx.username]||'').trim();
+    var password = String(r[idx.password]||'').trim();
+    var role = String(r[idx.role]||'').trim().toLowerCase();
+    var dept = String(r[idx.department]||'').trim();
+    var mgrUsername = idx.managerusername!=null ? String(r[idx.managerusername]||'').trim().toLowerCase() : '';
+    var email = idx.email!=null ? String(r[idx.email]||'').trim() : '';
+    var errors=[];
+    if(!name)     errors.push('name required');
+    if(!username) errors.push('username required');
+    else if(existingUsernames.indexOf(username.toLowerCase())>-1) errors.push('username already exists');
+    if(!password) errors.push('password required');
+    else if(password.length<4) errors.push('password too short');
+    if(validRoles.indexOf(role)===-1) errors.push('invalid role');
+    if(!dept)     errors.push('department required');
+    else if(validDepts.indexOf(dept.toLowerCase())===-1) errors.push('unknown department');
+    if(role==='user'){
+      if(!mgrUsername) errors.push('managerusername required for role=user');
+      else if(!managerMap[mgrUsername]) errors.push('managerusername not found');
+    }
+    if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('email format looks invalid');
+    var rec = { name:name, username:username, password:password, role:role, dept:dept, mgrUsername:mgrUsername, email:email, errors:errors };
+    (errors.length?invalid:valid).push(rec);
+  }
+  return { valid:valid, invalid:invalid };
+}
+function renderBulkPreview(){
+  var wrap = document.getElementById('bulk-preview');
+  var tbl  = document.getElementById('bulk-preview-table');
+  var sum  = document.getElementById('bulk-summary');
+  var btn  = document.getElementById('bulk-import-btn');
+  var all  = _bulkParsedRows.valid.concat(_bulkParsedRows.invalid);
+  wrap.style.display='block';
+  if(!all.length){
+    tbl.innerHTML=''; sum.innerHTML='<span style="color:var(--red)">No data rows found in the file.</span>';
+    btn.disabled=true; return;
+  }
+  tbl.innerHTML = '<thead><tr><th>Status</th><th>Name</th><th>Username</th><th>Role</th><th>Department</th><th>Manager</th><th>Issues</th></tr></thead>'
+    +'<tbody>'
+    + all.map(function(r){
+      var ok = r.errors.length===0;
+      return '<tr>'
+        +'<td>'+(ok?'<span class="badge resolved">✓ OK</span>':'<span class="badge critical">✗ Skip</span>')+'</td>'
+        +'<td style="font-weight:500">'+esc(r.name)+'</td>'
+        +'<td style="font-family:monospace;font-size:12px">@'+esc(r.username)+'</td>'
+        +'<td>'+roleBadge(r.role)+'</td>'
+        +'<td>'+esc(r.dept)+'</td>'
+        +'<td style="font-size:12px">'+esc(r.mgrUsername||'—')+'</td>'
+        +'<td style="font-size:11px;color:var(--red)">'+esc(r.errors.join('; '))+'</td>'
+      +'</tr>';
+    }).join('')
+    +'</tbody>';
+  var v=_bulkParsedRows.valid.length, i=_bulkParsedRows.invalid.length;
+  sum.innerHTML = '<strong>'+v+'</strong> valid row(s) will be imported. <strong style="color:'+(i?'var(--red)':'var(--text-muted)')+'">'+i+'</strong> row(s) will be skipped due to issues.';
+  btn.disabled = (v===0);
+  btn.innerHTML = '<i class="ti ti-check"></i> Import '+v+' user(s)';
+}
+function doBulkImport(){
+  var v = _bulkParsedRows.valid;
+  if(!v.length){ toast('Nothing valid to import','error'); return; }
+  // Import in 2 passes so users can reference managers created in the same batch
+  var managerIdByUsername = {};
+  db.users.forEach(function(u){ if(u.role==='manager') managerIdByUsername[u.username.toLowerCase()]=u.id; });
+  // Pass 1: managers + admins
+  v.filter(function(r){return r.role!=='user';}).forEach(function(r){
+    var id = 'U-'+Date.now().toString(36).toUpperCase()+Math.floor(Math.random()*1000);
+    db.users.push({id:id, username:r.username, password:r.password, name:r.name, role:r.role, dept:r.dept, managerId:null, email:r.email||''});
+    if(r.role==='manager') managerIdByUsername[r.username.toLowerCase()]=id;
+  });
+  // Pass 2: users (needs manager ids resolved)
+  v.filter(function(r){return r.role==='user';}).forEach(function(r){
+    var mid = managerIdByUsername[(r.mgrUsername||'').toLowerCase()] || null;
+    var id = 'U-'+Date.now().toString(36).toUpperCase()+Math.floor(Math.random()*1000);
+    db.users.push({id:id, username:r.username, password:r.password, name:r.name, role:r.role, dept:r.dept, managerId:mid, email:r.email||''});
+  });
+  saveDB();
+  closeModal('bulk-import-modal');
+  renderUsers(); renderNav();
+  toast('Imported '+v.length+' user(s)','success');
+}
+
 function downloadUsersCSV(){
-  var h='Name,Username,Role,Department,Reports To,Open Queries,In Progress,Resolved\n';
+  var h='Name,Username,Email,Role,Department,Reports To,Open Queries,In Progress,Resolved\n';
   var rows=db.users.map(function(u){
     var t=db.tickets.filter(function(x){return x.asgn===u.id;});
-    return [u.name,'@'+u.username,u.role,u.dept,u.managerId?userName(u.managerId):'',
+    return [u.name,'@'+u.username,u.email||'',u.role,u.dept,u.managerId?userName(u.managerId):'',
       t.filter(function(x){return x.st==='open';}).length,
       t.filter(function(x){return x.st==='in-progress';}).length,
       t.filter(function(x){return x.st==='resolved'||x.st==='closed';}).length
@@ -2154,6 +2740,17 @@ function renderSettings(){
       +'<div class="detail-row"><span class="lbl">Department</span><span>'+esc(me.dept)+'</span></div>'
   });
 
+  // Change password (everyone)
+  items.push({
+    key:'password', icon:'key', title:'Change my password', sub:'Update your login password',
+    body:''
+      +'<p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">The new password will replace your current one everywhere — including in the Super Admin\'s user list.</p>'
+      +'<div class="form-group"><label class="form-label">Current password</label><input class="form-control" type="password" id="pw-old" autocomplete="current-password"></div>'
+      +'<div class="form-group"><label class="form-label">New password (min 6 characters)</label><input class="form-control" type="password" id="pw-new" autocomplete="new-password"></div>'
+      +'<div class="form-group"><label class="form-label">Confirm new password</label><input class="form-control" type="password" id="pw-new2" autocomplete="new-password"></div>'
+      +'<button class="btn primary" onclick="changeMyPassword()"><i class="ti ti-key"></i> Change password</button>'
+  });
+
   // Departments (super admin only)
   if(me.role==='superadmin'){
     items.push({
@@ -2197,8 +2794,8 @@ function renderSettings(){
     });
   }
 
-  // Where is my data stored?
-  items.push({
+  // Where is my data stored? — SUPER ADMIN ONLY
+  if(me.role==='superadmin') items.push({
     key:'storage', icon:'database', title:'Where is my data stored?', sub:'Current mode + how to switch to shared backend',
     body:''
       +'<div style="margin-bottom:10px">Current mode: <span id="storage-state"></span></div>'
@@ -2240,6 +2837,25 @@ function renderSettings(){
   renderDepartmentChips();  // populate the department chips inside the accordion body if it exists
 }
 
+function changeMyPassword(){
+  var oldP = document.getElementById('pw-old').value;
+  var newP = document.getElementById('pw-new').value;
+  var newP2= document.getElementById('pw-new2').value;
+  if(!oldP || !newP){ toast('Fill both current and new password','error'); return; }
+  if(oldP !== me.password){ toast('Current password is incorrect','error'); return; }
+  if(newP.length < 6){ toast('New password must be at least 6 characters','error'); return; }
+  if(newP !== newP2){ toast('New passwords don\'t match','error'); return; }
+  if(newP === oldP){ toast('New password must be different from current','error'); return; }
+  // Update in the db (this will save to Supabase → visible to Super Admin's user list)
+  var u = db.users.find(function(x){return x.id===me.id;});
+  if(!u){ toast('Account not found','error'); return; }
+  u.password = newP;
+  me.password = newP;
+  saveDB();
+  ['pw-old','pw-new','pw-new2'].forEach(function(id){ var el=document.getElementById(id); if(el)el.value=''; });
+  toast('Password updated — use it next time you sign in','success');
+}
+
 function downloadFullBackup(){
   var stamp=new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
   var payload=JSON.stringify(db,null,2);
@@ -2253,10 +2869,25 @@ function renderDepartmentChips(){
   var list=(db.departments||[]);
   if(!list.length){ wrap.innerHTML='<span style="font-size:12px;color:var(--text-muted)">No departments yet — add one below.</span>'; return; }
   wrap.innerHTML=list.map(function(d){
-    var mgr=deptManager(d);
-    var meta=mgr?('Head: '+esc(mgr.name)):'No head assigned';
-    var canRemove=(me.role==='superadmin');
-    return '<span class="badge medium" style="padding:6px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px" title="'+meta+'"><i class="ti ti-building"></i>'+esc(d)+(canRemove?' <button class="btn xs danger" style="padding:1px 5px;margin-left:2px" onclick="removeDepartment(\''+esc(d).replace(/\x27/g,'&#39;')+'\')" title="Remove"><i class="ti ti-x"></i></button>':'')+'</span>';
+    var mgr=deptManager(d.name);
+    var meta=mgr?('Head: '+mgr.name):'No head assigned';
+    var subsHtml = (d.subs||[]).map(function(s){
+      return '<span class="badge low" style="padding:3px 8px;font-size:10px;margin:2px">'+esc(s)+' <button class="btn xs danger" style="padding:0 3px;margin-left:2px" onclick="removeSubcategory(\''+esc(d.name).replace(/\x27/g,'&#39;')+'\',\''+esc(s).replace(/\x27/g,'&#39;')+'\')"><i class="ti ti-x" style="font-size:9px"></i></button></span>';
+    }).join('');
+    return '<div style="background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;width:100%">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
+        +'<i class="ti ti-building" style="color:var(--blue)"></i>'
+        +'<strong style="font-size:13px">'+esc(d.name)+'</strong>'
+        +'<span style="font-size:11px;color:var(--text-muted)">· '+esc(meta)+'</span>'
+        +'<button class="btn xs danger" style="margin-left:auto" onclick="removeDepartment(\''+esc(d.name).replace(/\x27/g,'&#39;')+'\')" title="Remove department"><i class="ti ti-trash"></i></button>'
+      +'</div>'
+      +'<div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Sub-categories</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:6px;min-height:20px">'+ (subsHtml || '<span style="font-size:11px;color:var(--text-muted);padding:2px 4px">None yet — users won\'t be asked for a sub-category</span>') +'</div>'
+      +'<div style="display:flex;gap:6px">'
+        +'<input class="form-control" id="new-sub-'+esc(d.name).replace(/[^a-zA-Z0-9]/g,'-')+'" placeholder="e.g. Sales, CRM, Support…" style="flex:1;font-size:12px;padding:5px 8px" onkeydown="if(event.key===&#39;Enter&#39;)addSubcategory(&#39;'+esc(d.name).replace(/\x27/g,'&#39;')+'&#39;)">'
+        +'<button class="btn sm" onclick="addSubcategory(\''+esc(d.name).replace(/\x27/g,'&#39;')+'\')"><i class="ti ti-plus"></i> Add sub-category</button>'
+      +'</div>'
+    +'</div>';
   }).join('');
 }
 function addDepartment(){
@@ -2264,8 +2895,8 @@ function addDepartment(){
   var name=document.getElementById('new-dept-name').value.trim();
   if(!name){toast('Enter a department name','error');return;}
   if(!db.departments) db.departments=[];
-  if(db.departments.some(function(d){return d.toLowerCase()===name.toLowerCase();})){toast('That department already exists','error');return;}
-  db.departments.push(name); saveDB();
+  if(db.departments.some(function(d){return d.name.toLowerCase()===name.toLowerCase();})){toast('That department already exists','error');return;}
+  db.departments.push({name:name, subs:[]}); saveDB();
   document.getElementById('new-dept-name').value='';
   renderDepartmentChips(); toast('Added department "'+name+'"','success');
 }
@@ -2276,8 +2907,26 @@ function removeDepartment(name){
   var msg='Remove department "'+name+'"?';
   if(usersHere||ticketsHere) msg+='\n\nThis department is referenced by '+usersHere+' user(s) and '+ticketsHere+' query/queries. They will keep the label but you won\'t be able to pick "'+name+'" for new items. Continue?';
   if(!confirm(msg))return;
-  db.departments=(db.departments||[]).filter(function(d){return d!==name;});
+  db.departments=(db.departments||[]).filter(function(d){return d.name!==name;});
   saveDB(); renderDepartmentChips(); toast('Removed "'+name+'"','info');
+}
+function addSubcategory(deptName){
+  if(me.role!=='superadmin'){toast('Only Super Admin can manage sub-categories','error');return;}
+  var input=document.getElementById('new-sub-'+deptName.replace(/[^a-zA-Z0-9]/g,'-'));
+  var name=input && input.value.trim();
+  if(!name){toast('Enter a sub-category name','error');return;}
+  var d=deptByName(deptName); if(!d)return;
+  if(!Array.isArray(d.subs)) d.subs=[];
+  if(d.subs.some(function(s){return s.toLowerCase()===name.toLowerCase();})){toast('That sub-category already exists','error');return;}
+  d.subs.push(name); saveDB();
+  renderDepartmentChips(); toast('Added sub-category "'+name+'" to '+deptName,'success');
+}
+function removeSubcategory(deptName, sub){
+  if(me.role!=='superadmin'){toast('Only Super Admin can manage sub-categories','error');return;}
+  if(!confirm('Remove sub-category "'+sub+'" from '+deptName+'?'))return;
+  var d=deptByName(deptName); if(!d)return;
+  d.subs=(d.subs||[]).filter(function(s){return s!==sub;});
+  saveDB(); renderDepartmentChips(); toast('Removed sub-category','info');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2292,11 +2941,30 @@ function openDetail(id){
   document.getElementById('dp-status').innerHTML=stBadge(t.st);
   document.getElementById('dp-priority').innerHTML=priBadge(t.pri);
   document.getElementById('dp-type').innerHTML=typeBadge(t.type);
-  set('dp-req',t.req+(t.reqEmail?' · '+t.reqEmail:''));
+  var reqEmailHtml = t.reqEmail
+    ? ' · <a href="mailto:'+encodeURIComponent(t.reqEmail)+'?subject='+encodeURIComponent('Homeland Helpdesk · '+t.id+' — '+t.title)+'" style="color:var(--blue);text-decoration:underline"><i class="ti ti-mail" style="font-size:11px"></i> '+esc(t.reqEmail)+'</a>'
+    : '';
+  document.getElementById('dp-req').innerHTML=esc(t.req)+reqEmailHtml;
   set('dp-dept',t.dept);
+  var subRow=document.getElementById('dp-subcat-row');
+  if(t.subcat){ subRow.style.display='flex'; set('dp-subcat', t.subcat); }
+  else { subRow.style.display='none'; }
   set('dp-mgr',t.managerId?userName(t.managerId):'—');
   set('dp-created',new Date(t.created).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}));
   set('dp-desc',t.desc||'—');
+  // Attachments (images stored as base64 data URLs on ticket.attachments)
+  var attWrap=document.getElementById('dp-attach-section');
+  var attBody=document.getElementById('dp-attachments');
+  if(t.attachments && t.attachments.length){
+    attWrap.style.display='block';
+    attBody.innerHTML=t.attachments.map(function(a,i){
+      var src=(typeof a==='string')?a:a.data;
+      return '<a href="'+src+'" target="_blank" title="Click to open full size"><img src="'+src+'" style="max-width:100%;border-radius:8px;margin-bottom:6px;display:block;border:1px solid var(--border)"></a>';
+    }).join('');
+  } else {
+    attWrap.style.display='none';
+    attBody.innerHTML='';
+  }
 
   // assigned + reassign control
   var asgnHtml='<span>'+ (t.asgn?esc(userName(t.asgn)):'Unassigned') +'</span>';
@@ -2305,6 +2973,13 @@ function openDetail(id){
 
   // header actions
   var hdr='';
+  // Email-notify the assignee (only if they have an email on file)
+  if(t.asgn){
+    var au = userById(t.asgn);
+    if(au && au.email && me.role!=='user'){
+      hdr+='<button class="btn sm" onclick="notifyAssignee(\''+t.id+'\')" title="Email '+esc(au.name)+' about this ticket"><i class="ti ti-mail"></i> Notify</button>';
+    }
+  }
   if(me.role==='superadmin') hdr+='<button class="btn sm warning" onclick="openEditTicketModal(\''+t.id+'\')" title="Edit"><i class="ti ti-edit"></i></button>'
     +'<button class="btn sm danger" onclick="deleteTicket(\''+t.id+'\')" title="Delete"><i class="ti ti-trash"></i></button>';
   hdr+='<button class="btn sm" onclick="closeDetail()"><i class="ti ti-x"></i></button>';
@@ -2376,7 +3051,12 @@ function fillAssignSelect(selectId, selectedVal){
       opts+='<optgroup label="Users without a manager">'+orphans.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+' · '+esc(u.dept)+'</option>';}).join('')+'</optgroup>';
     }
   } else if(me.role==='manager'){
-    opts+=usersOfManager(me.id).map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+' ('+esc(u.dept)+')</option>';}).join('');
+    // Managers can either handle it themselves OR delegate to one of their team users
+    opts+='<optgroup label="Handle it yourself"><option value="'+me.id+'">'+esc(me.name)+' — Me (Head of '+esc(me.dept)+')</option></optgroup>';
+    var team=usersOfManager(me.id);
+    if(team.length){
+      opts+='<optgroup label="Delegate to my team">'+team.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+' ('+esc(u.dept)+')</option>';}).join('')+'</optgroup>';
+    }
   }
   var sel=document.getElementById(selectId);
   sel.innerHTML=opts;
@@ -2388,7 +3068,7 @@ function openNewTicketModal(type){
   document.getElementById('ticket-modal-title').textContent='New ticket';
   document.getElementById('ticket-modal-save').innerHTML='<i class="ti ti-plus"></i> Create ticket';
   document.getElementById('f-title').value='';document.getElementById('f-desc').value='';document.getElementById('f-req').value=me.name;
-  document.getElementById('f-type').value=(typeof type==='string'?type:'incident');
+  document.getElementById('f-type').value=(typeof type==='string'?type:'query');
   document.getElementById('f-priority').value='medium';
   document.getElementById('f-status').value='open';
   fillDeptSelect('f-dept', me.dept);
@@ -2481,7 +3161,55 @@ function saveAssign(){
   t.log.push({type:'assign',msg:msg+(note?' — '+note:''),user:me.name,at:new Date().toISOString()});
   saveDB(); closeModal('assign-modal');
   if(activeTicket&&activeTicket.id===id)openDetail(id);
-  refreshCurrent(); toast(newA?('Assigned to '+userName(newA)):'Unassigned','success');
+  refreshCurrent();
+  // Offer email notification to the newly-assigned user
+  var assignee = newA ? userById(newA) : null;
+  if(assignee && assignee.email){
+    var send = confirm('Assigned to '+assignee.name+'.\n\nSend them an email notification about ticket '+t.id+'?\n(This opens your email app with a pre-filled message.)');
+    if(send) notifyAssignee(t.id);
+    else toast('Assigned to '+assignee.name,'success');
+  } else if(assignee){
+    toast('Assigned to '+assignee.name+' — no email on file. Add one in User Management to enable email notifications.','info');
+  } else {
+    toast('Unassigned','info');
+  }
+}
+
+// Compose a mailto: notification for the assignee (or the ticket's requester).
+// This opens the user's default email client with subject + body pre-filled — no server needed.
+function notifyAssignee(ticketId, alsoRequester){
+  var t=db.tickets.find(function(x){return x.id===ticketId;}); if(!t)return;
+  var target=null, kind='';
+  if(alsoRequester){ target={email:t.reqEmail, name:t.req}; kind='requester'; }
+  else { var u=userById(t.asgn); if(!u){ toast('No assignee','error'); return; } target={email:u.email, name:u.name}; kind='assignee'; }
+  if(!target.email){ toast('No email on file for '+target.name,'error'); return; }
+  var typeLabel = {query:'Query',error:'Error',training:'Training',requirement:'Requirement',request:'Service request',change:'Change request',problem:'Problem',complaint:'Complaint'}[t.type] || t.type;
+  var stLabel = {open:'Open','in-progress':'In progress',resolved:'Resolved',closed:'Closed'}[t.st] || t.st;
+  var subject = 'Homeland Helpdesk · '+t.id+' — '+t.title;
+  var body = [
+    'Hello '+target.name+',',
+    '',
+    (kind==='assignee' ? 'A helpdesk ticket has been assigned to you.' : 'Update on your Homeland Helpdesk ticket:'),
+    '',
+    'Ticket:      '+t.id,
+    'Title:       '+t.title,
+    'Type:        '+typeLabel,
+    'Priority:    '+t.pri,
+    'Status:      '+stLabel,
+    'Department:  '+t.dept+(t.subcat?' → '+t.subcat:''),
+    'Requester:   '+t.req+(t.reqEmail?' <'+t.reqEmail+'>':''),
+    'Assigned to: '+(t.asgn?userName(t.asgn):'Unassigned'),
+    '',
+    'Description:',
+    (t.desc||'—'),
+    '',
+    '— Track this ticket any time here:',
+    (typeof location!=='undefined'?location.origin+location.pathname:''),
+    '',
+    'Sent by '+me.name+' via Homeland Helpdesk.'
+  ].join('\n');
+  window.location.href = 'mailto:'+encodeURIComponent(target.email)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  toast('Opening email to '+target.name+'…','success');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2506,6 +3234,7 @@ function openUserModal(id){
     document.getElementById('user-modal-save').innerHTML='<i class="ti ti-check"></i> Save changes';
     document.getElementById('us-name').value=u.name;
     document.getElementById('us-username').value=u.username;
+    document.getElementById('us-email').value=u.email||'';
     document.getElementById('us-pass').value=u.password;
     fillDeptSelect('us-dept', u.dept);
     document.getElementById('us-role').value=u.role;
@@ -2514,8 +3243,8 @@ function openUserModal(id){
     document.getElementById('edit-user-id').value='';
     document.getElementById('user-modal-title').textContent='Create user';
     document.getElementById('user-modal-save').innerHTML='<i class="ti ti-user-plus"></i> Create user';
-    ['us-name','us-username','us-pass'].forEach(function(x){document.getElementById(x).value='';});
-    fillDeptSelect('us-dept', (db.departments && db.departments[0]) || 'IT');
+    ['us-name','us-username','us-email','us-pass'].forEach(function(x){document.getElementById(x).value='';});
+    fillDeptSelect('us-dept', deptNames()[0] || 'IT');
     document.getElementById('us-role').value='user';
   }
   onUserRoleChange();
@@ -2524,21 +3253,23 @@ function openUserModal(id){
 function saveUser(){
   var name=document.getElementById('us-name').value.trim();
   var username=document.getElementById('us-username').value.trim().toLowerCase();
+  var email=document.getElementById('us-email').value.trim();
   var pass=document.getElementById('us-pass').value;
   var role=document.getElementById('us-role').value;
   var dept=document.getElementById('us-dept').value;
   var mgr=(role==='user')?(document.getElementById('us-manager').value||null):null;
   if(!name||!username||!pass){toast('Name, username and password are required','error');return;}
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Email format looks invalid','error');return;}
   if(role==='user'&&!mgr){toast('Assign this user to a manager','error');return;}
   var editId=document.getElementById('edit-user-id').value;
   var dupe=db.users.find(function(u){return u.username===username && u.id!==editId;});
   if(dupe){toast('That username is already taken','error');return;}
   if(editId){
     var u=userById(editId); if(!u)return;
-    u.name=name;u.username=username;u.password=pass;u.role=role;u.dept=dept;u.managerId=mgr;
+    u.name=name;u.username=username;u.email=email;u.password=pass;u.role=role;u.dept=dept;u.managerId=mgr;
     toast('User updated','success');
   } else {
-    db.users.push({id:'U-'+Date.now().toString(36).toUpperCase(),username:username,password:pass,name:name,role:role,dept:dept,managerId:mgr});
+    db.users.push({id:'U-'+Date.now().toString(36).toUpperCase(),username:username,email:email,password:pass,name:name,role:role,dept:dept,managerId:mgr});
     toast('User "'+name+'" created','success');
   }
   saveDB(); closeModal('user-modal'); renderNav(); renderUsers();
@@ -2607,12 +3338,12 @@ function toast(msg,type){
 }
 function toggleTheme(){
   var dark=document.documentElement.classList.toggle('dark');
-  ['theme-icon','theme-icon-login','theme-icon-landing','theme-icon-complaint'].forEach(function(id){var i=document.getElementById(id);if(i)i.className=dark?'ti ti-sun':'ti ti-moon';});
+  ['theme-icon','theme-icon-login','theme-icon-landing','theme-icon-complaint','theme-icon-track'].forEach(function(id){var i=document.getElementById(id);if(i)i.className=dark?'ti ti-sun':'ti ti-moon';});
   localStorage.setItem(THEME_KEY,dark?'dark':'light');
 }
 function loadTheme(){
   if(localStorage.getItem(THEME_KEY)==='dark'){document.documentElement.classList.add('dark');
-    ['theme-icon','theme-icon-login','theme-icon-landing','theme-icon-complaint'].forEach(function(id){var i=document.getElementById(id);if(i)i.className='ti ti-sun';});}
+    ['theme-icon','theme-icon-login','theme-icon-landing','theme-icon-complaint','theme-icon-track'].forEach(function(id){var i=document.getElementById(id);if(i)i.className='ti ti-sun';});}
 }
 
 // ─── Cross-tab sync ──────────────────────────────────────
