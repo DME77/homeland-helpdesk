@@ -436,6 +436,10 @@ html.dark .land-brand .mark{background:#0a0908;box-shadow:0 2px 8px rgba(0,0,0,.
 .settings-item-body .info-box{margin:8px 0}
 .settings-item-body code{background:var(--surface-1);padding:1px 6px;border-radius:4px;font-size:11px}
 
+/* View container must fill the main area vertically so .content inside can scroll */
+.view{flex:1;min-height:0;overflow:hidden}
+#views{flex:1;min-height:0}
+
 /* Loading splash dot */
 .loading-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block;animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.3;transform:scale(.9)}50%{opacity:1;transform:scale(1.15)}}
@@ -893,6 +897,24 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
               <table><thead><tr>
                 <th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Department</th><th>Reports to</th><th>Open</th><th style="min-width:140px">Actions</th>
               </tr></thead><tbody id="users-tbody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ DEPARTMENTS (super admin) ═══ -->
+        <div id="v-departments" class="view" style="display:none;flex-direction:column">
+          <div class="topbar">
+            <h1>Departments</h1>
+          </div>
+          <div class="content">
+            <div class="settings-card" style="max-width:100%">
+              <h3><i class="ti ti-building" style="color:var(--blue)"></i> Manage departments &amp; sub-categories</h3>
+              <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:14px">Departments show up across the whole app — public complaint form, new-query dialog, user creation and reports. Complaints auto-route to the department's Head (Manager). Sub-categories appear as a second dropdown on the complaint form after the department is picked.</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+                <input class="form-control" id="new-dept-name" placeholder="New department name…" style="flex:1;min-width:220px" onkeydown="if(event.key==='Enter')addDepartment()">
+                <button class="btn primary" onclick="addDepartment()"><i class="ti ti-plus"></i> Add department</button>
+              </div>
+              <div id="dept-chips" style="display:flex;flex-direction:column;gap:0"></div>
             </div>
           </div>
         </div>
@@ -1762,6 +1784,7 @@ var NAV_CONFIG={
     {special:'closed', icon:'archive',        label:'Closed queries', badge:'closed'},
     {sec:'Administration'},
     {v:'users',      icon:'users',            label:'User Management'},
+    {v:'departments',icon:'building',         label:'Departments'},
     {v:'requests',   icon:'key',              label:'Password Requests', badge:'requests'},
     {v:'reports',    icon:'chart-bar',        label:'Reports'},
     {sec:'Config'},
@@ -1859,7 +1882,7 @@ function openClosedQueries(){
 
 function nav(v){
   currentView=v;
-  ['dashboard','tickets','team','users','requests','reports','settings'].forEach(function(x){
+  ['dashboard','tickets','team','users','departments','requests','reports','settings'].forEach(function(x){
     var el=document.getElementById('v-'+x); if(el) el.style.display=(x===v?'flex':'none');
   });
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.toggle('active', n.getAttribute('data-view')===v);});
@@ -1870,6 +1893,7 @@ function nav(v){
   if(v==='tickets')renderTickets();
   if(v==='team')renderTeam();
   if(v==='users')renderUsers();
+  if(v==='departments')renderDepartmentChips();
   if(v==='requests')renderPasswordRequests();
   if(v==='reports')renderReports();
   if(v==='settings')renderSettings();
@@ -2751,20 +2775,6 @@ function renderSettings(){
       +'<button class="btn primary" onclick="changeMyPassword()"><i class="ti ti-key"></i> Change password</button>'
   });
 
-  // Departments (super admin only)
-  if(me.role==='superadmin'){
-    items.push({
-      key:'departments', icon:'building', title:'Departments', sub:(db.departments||[]).length+' departments · click to manage',
-      body:''
-        +'<p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Manage the list of departments shown across the app. Complaints auto-route to the Head (Manager) of the chosen department.</p>'
-        +'<div id="dept-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>'
-        +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-        +'<input class="form-control" id="new-dept-name" placeholder="New department name…" style="flex:1;min-width:180px" onkeydown="if(event.key===&#39;Enter&#39;)addDepartment()">'
-        +'<button class="btn primary" onclick="addDepartment()"><i class="ti ti-plus"></i> Add</button>'
-        +'</div>'
-    });
-  }
-
   // Users list (super admin only — collapsible view of accounts)
   if(me.role==='superadmin'){
     var byRole = { superadmin:[], manager:[], user:[] };
@@ -2834,7 +2844,6 @@ function renderSettings(){
   }).join('');
 
   updateStorageIndicator();
-  renderDepartmentChips();  // populate the department chips inside the accordion body if it exists
 }
 
 function changeMyPassword(){
