@@ -1041,9 +1041,14 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
           <div class="detail-section">
             <div class="detail-section-label">Comments &amp; activity</div>
             <div class="timeline" id="dp-timeline"></div>
+            <div id="comment-image-preview" style="margin-top:8px"></div>
             <div class="comment-input-wrap" style="margin-top:10px">
               <textarea id="comment-input" placeholder="Add a comment or update…" rows="2"></textarea>
-              <button class="btn primary sm" onclick="addComment()"><i class="ti ti-send"></i></button>
+              <label class="btn sm" style="cursor:pointer;flex-shrink:0" title="Attach an image">
+                <i class="ti ti-paperclip"></i>
+                <input type="file" id="comment-image" accept="image/*" style="display:none" onchange="stageCommentImage(this)">
+              </label>
+              <button class="btn primary sm" onclick="addComment()" title="Send"><i class="ti ti-send"></i></button>
             </div>
           </div>
         </div>
@@ -2336,7 +2341,7 @@ function validateBulkRows(rows){
   var valid=[], invalid=[];
   var existingUsernames = db.users.map(function(u){return u.username.toLowerCase();});
   var validRoles = ['superadmin','manager','user'];
-  var validDepts = (db.departments||[]).map(function(d){return d.toLowerCase();});
+  var validDepts = deptNames().map(function(n){return n.toLowerCase();});
   var managerMap = {};
   db.users.filter(function(u){return u.role==='manager';}).forEach(function(u){managerMap[u.username.toLowerCase()]=u.id;});
   // Also consider managers being imported in the same batch
@@ -3192,23 +3197,64 @@ function openDetail(id){
 function buildTimeline(log){
   return log.slice().reverse().map(function(l){
     var isComment=l.type==='comment';
+    var img = l.image
+      ? '<a href="'+l.image+'" target="_blank" title="Click to open full size"><img src="'+l.image+'" style="max-width:100%;max-height:220px;border-radius:6px;margin-top:6px;display:block;border:1px solid var(--border);cursor:zoom-in"></a>'
+      : '';
     return '<div class="tl-item"><div class="tl-avatar">'+initials(l.user)+'</div>'
       +'<div class="tl-bubble'+(isComment?' comment':'')+'">'
       +'<div class="tl-bubble-header"><span class="tl-name">'+esc(l.user)+'</span><span class="tl-time">'+age(l.at)+'</span></div>'
-      +'<div class="tl-text">'+esc(l.msg)+'</div></div></div>';
+      +'<div class="tl-text">'+esc(l.msg)+'</div>'+img+'</div></div>';
   }).join('');
+}
+
+// Comment attachment: stage a picked image (resized to keep DB small), preview it, keep until Send
+var _commentImageData=null;
+function stageCommentImage(input){
+  var file=input.files && input.files[0]; if(!file){_commentImageData=null; clearCommentImagePreview(); return;}
+  if(!/^image\//.test(file.type)){ toast('Please pick an image file','error'); input.value=''; return; }
+  if(file.size > 5*1024*1024){ toast('Image too large — max 5 MB','error'); input.value=''; return; }
+  // Resize larger side to ~1024 to keep the Supabase payload reasonable
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var max=1024;
+      var scale = Math.min(1, max/Math.max(img.width, img.height));
+      var w = Math.round(img.width*scale), h = Math.round(img.height*scale);
+      var canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      _commentImageData = canvas.toDataURL('image/jpeg', 0.82);
+      document.getElementById('comment-image-preview').innerHTML=
+        '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface-1);border-radius:8px;border:1px dashed var(--border-strong)">'
+        +'<img src="'+_commentImageData+'" style="width:44px;height:44px;object-fit:cover;border-radius:4px">'
+        +'<div style="flex:1;font-size:11px"><div style="font-weight:600">'+esc(file.name)+'</div><div style="color:var(--text-muted)">Ready to send with your comment</div></div>'
+        +'<button class="btn xs danger" onclick="clearCommentImagePreview()"><i class="ti ti-x"></i></button></div>';
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function clearCommentImagePreview(){
+  _commentImageData=null;
+  var el=document.getElementById('comment-image'); if(el)el.value='';
+  var pv=document.getElementById('comment-image-preview'); if(pv)pv.innerHTML='';
 }
 function addComment(){
   var val=document.getElementById('comment-input').value.trim();
-  if(!val||!activeTicket)return;
-  activeTicket.log.push({type:'comment',msg:val,user:me.name,at:new Date().toISOString()});
+  if(!val && !_commentImageData){ toast('Type a comment or attach an image first','error'); return; }
+  if(!activeTicket)return;
+  var entry={type:'comment', msg:val || '(image attached)', user:me.name, at:new Date().toISOString()};
+  if(_commentImageData) entry.image = _commentImageData;
+  activeTicket.log.push(entry);
   activeTicket.updated=new Date().toISOString();
   saveDB();
   document.getElementById('comment-input').value='';
+  clearCommentImagePreview();
   document.getElementById('dp-timeline').innerHTML=buildTimeline(activeTicket.log);
-  toast('Comment added','success');
+  toast(entry.image?'Comment + image posted':'Comment added','success');
 }
-function closeDetail(){var p=document.getElementById('detail-panel');if(p)p.classList.add('hidden');activeTicket=null;}
+function closeDetail(){var p=document.getElementById('detail-panel');if(p)p.classList.add('hidden');activeTicket=null;clearCommentImagePreview&&clearCommentImagePreview();}
 function setSt(st){
   if(!activeTicket)return;
   var prev=activeTicket.st; if(prev===st){return;}
