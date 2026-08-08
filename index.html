@@ -151,6 +151,7 @@ tr.clickable:hover{background:var(--surface-1);cursor:pointer}
 .badge.query{background:var(--amber-bg);color:var(--amber-text)}
 .badge.purple{background:var(--purple-bg);color:var(--purple-text)}
 .badge.superadmin{background:var(--purple-bg);color:var(--purple-text)}
+.badge.admin{background:var(--red-bg);color:var(--red-text)}
 .badge.manager{background:var(--blue-bg);color:var(--blue-text)}
 .badge.user{background:var(--gray-bg);color:var(--gray-text)}
 .badge.unassigned{background:var(--gray-bg);color:var(--gray-text)}
@@ -684,12 +685,6 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
           <input class="form-control" id="cp-email" type="email" placeholder="you@homelandgroup.org"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Department *</label>
-          <select class="form-control" id="cp-dept" onchange="fillSubcatSelect('cp-subcat', this.value)"></select></div>
-        <div class="form-group" style="display:none"><label class="form-label">Sub-category</label>
-          <select class="form-control" id="cp-subcat"></select></div>
-      </div>
-      <div class="form-row">
         <div class="form-group"><label class="form-label">Query type *</label>
           <select class="form-control" id="cp-type">
             <option value="query">Query</option>
@@ -702,6 +697,12 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
           </select></div>
         <div class="form-group"><label class="form-label">Priority *</label>
           <select class="form-control" id="cp-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="critical">Critical — urgent</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Query related to department *</label>
+          <select class="form-control" id="cp-dept" onchange="fillSubcatSelect('cp-subcat', this.value)"></select></div>
+        <div class="form-group" style="display:none"><label class="form-label">Sub-category</label>
+          <select class="form-control" id="cp-subcat"></select></div>
       </div>
       <div class="form-group"><label class="form-label">Attach image (optional)</label>
         <input class="form-control" type="file" id="cp-image" accept="image/*" onchange="previewComplaintImage(this)" style="padding:5px 8px">
@@ -890,11 +891,11 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
             <h1>User management</h1>
             <button class="btn" onclick="downloadUsersCSV()"><i class="ti ti-download"></i> Download CSV</button>
             <button class="btn" onclick="openBulkImportModal()"><i class="ti ti-upload"></i> Import CSV</button>
-            <button class="btn primary" onclick="openUserModal()"><i class="ti ti-user-plus"></i> Create user / admin</button>
+            <button class="btn primary" id="users-create-btn" onclick="openUserModal()"><i class="ti ti-user-plus"></i> Create user</button>
           </div>
           <div class="content">
             <div class="stats-grid">
-              <div class="stat-card purple clickable" onclick="setUserFilter('role','superadmin',this)"><div class="stat-label"><i class="ti ti-shield-lock" style="font-size:12px"></i> Super admins</div><div class="stat-value" id="u-admins">0</div><div class="stat-sub">Click to filter</div></div>
+              <div class="stat-card purple clickable" onclick="setUserFilter('role','admins',this)"><div class="stat-label"><i class="ti ti-shield-lock" style="font-size:12px"></i> Admins</div><div class="stat-value" id="u-admins">0</div><div class="stat-sub">Super Admin + Admin</div></div>
               <div class="stat-card blue clickable" onclick="setUserFilter('role','manager',this)"><div class="stat-label"><i class="ti ti-user-star" style="font-size:12px"></i> Managers</div><div class="stat-value" id="u-managers">0</div><div class="stat-sub">Heads of department</div></div>
               <div class="stat-card green clickable" onclick="setUserFilter('role','user',this)"><div class="stat-label"><i class="ti ti-users" style="font-size:12px"></i> Users</div><div class="stat-value" id="u-users">0</div><div class="stat-sub">Downline team</div></div>
               <div class="stat-card amber clickable" onclick="setUserFilter('role','all',this)"><div class="stat-label"><i class="ti ti-user-check" style="font-size:12px"></i> Total accounts</div><div class="stat-value" id="u-total">0</div><div class="stat-sub">Everyone</div></div>
@@ -1520,7 +1521,7 @@ function deptManager(deptName){ return db.users.find(function(u){return u.role==
 //                  and things explicitly routed to them)
 //  ▸ User        — only queries assigned to them
 function visibleTickets(){
-  if(me.role==='superadmin') return db.tickets.slice();
+  if(isAdmin(me)) return db.tickets.slice();
   if(me.role==='manager'){
     var myUserIds=usersOfManager(me.id).map(function(u){return u.id;});
     return db.tickets.filter(function(t){
@@ -1534,7 +1535,7 @@ function visibleTickets(){
 }
 function assignableUsers(){
   // who the current role can assign a ticket to
-  if(me.role==='superadmin'){
+  if(isAdmin(me)){
     return [].concat(
       db.users.filter(function(u){return u.role==='manager';}),
       db.users.filter(function(u){return u.role==='user';})
@@ -1550,7 +1551,10 @@ function badge(cls,label){return '<span class="badge '+cls+'">'+esc(label)+'</sp
 function stBadge(s){var m={open:'Open','in-progress':'In progress',resolved:'Resolved',closed:'Closed',approved:'Approved',rejected:'Rejected',pending:'Pending'};return badge(s,m[s]||s);}
 function priBadge(p){return badge(p,p.charAt(0).toUpperCase()+p.slice(1));}
 function typeBadge(t){var m={incident:'Incident',change:'Change',request:'Request',problem:'Problem',complaint:'Complaint',error:'Error',training:'Training',requirement:'Requirement',query:'Query'};return badge(t,m[t]||t);}
-function roleBadge(r){var m={superadmin:'Super Admin',manager:'Manager',user:'User'};return badge(r,m[r]||r);}
+function roleBadge(r){var m={superadmin:'Super Admin',admin:'Admin',manager:'Manager',user:'User'};return badge(r,m[r]||r);}
+// Permission helpers used throughout the app
+function isAdmin(u){ return !!u && (u.role==='superadmin' || u.role==='admin'); }
+function isSuperAdmin(u){ return !!u && u.role==='superadmin'; }
 function asgnLabel(t){return t.asgn?esc(userName(t.asgn)):'<span class="badge unassigned">Unassigned</span>';}
 function set(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -1588,8 +1592,8 @@ function goLoginAs(kind){
   var badge = document.getElementById('login-mode-badge');
   if(loginMode==='admin'){
     if(title) title.textContent = 'Admin Login';
-    if(sub)   sub.textContent   = 'For Super Admins only';
-    if(badge){ badge.style.display='block'; badge.style.background='var(--purple-bg)'; badge.style.color='var(--purple-text)'; badge.innerHTML='<i class="ti ti-shield-lock"></i> Super Admin access only'; }
+    if(sub)   sub.textContent   = 'For Super Admins and Admins';
+    if(badge){ badge.style.display='block'; badge.style.background='var(--purple-bg)'; badge.style.color='var(--purple-text)'; badge.innerHTML='<i class="ti ti-shield-lock"></i> Super Admin &amp; Admin access'; }
   } else {
     if(title) title.textContent = 'User Login';
     if(sub)   sub.textContent   = 'For Managers and Users';
@@ -1619,12 +1623,12 @@ function doLogin(){
     err.classList.add('show'); return;
   }
   // Enforce role vs the login gate they came through
-  if(loginMode==='admin' && found.role!=='superadmin'){
-    errMsg.innerHTML='This is not a Super Admin account. Please use <strong>User Login</strong> instead.';
+  if(loginMode==='admin' && !isAdmin(found)){
+    errMsg.innerHTML='This is not an Admin account. Please use <strong>User Login</strong> instead.';
     err.classList.add('show'); return;
   }
-  if(loginMode==='user' && found.role==='superadmin'){
-    errMsg.innerHTML='This is a Super Admin account. Please use <strong>Admin Login</strong> instead.';
+  if(loginMode==='user' && isAdmin(found)){
+    errMsg.innerHTML='This is an Admin account. Please use <strong>Admin Login</strong> instead.';
     err.classList.add('show'); return;
   }
 
@@ -1711,7 +1715,7 @@ function submitForgotPassword(){
   toast('Request sent — your admin will set a new password shortly','success');
 }
 function renderPasswordRequests(){
-  if(me.role!=='superadmin') return;
+  if(!isAdmin(me)) return;
   var list=(db.passwordRequests||[]).slice().sort(function(a,b){return new Date(b.at)-new Date(a.at);});
   set('pr-pending',  list.filter(function(r){return r.status==='pending';}).length);
   set('pr-approved', list.filter(function(r){return r.status==='approved';}).length);
@@ -1838,6 +1842,19 @@ function resetComplaint(){
 // The special `special:'closed'` action navigates to tickets view with status=closed applied.
 var NAV_CONFIG={
   superadmin:[
+    {sec:'Main'},
+    {v:'dashboard',  icon:'layout-dashboard', label:'Dashboard'},
+    {v:'tickets',    icon:'ticket',           label:'All Queries', badge:'open'},
+    {special:'closed', icon:'archive',        label:'Closed queries', badge:'closed'},
+    {sec:'Administration'},
+    {v:'users',      icon:'users',            label:'User Management'},
+    {v:'departments',icon:'building',         label:'Departments'},
+    {v:'requests',   icon:'key',              label:'Password Requests', badge:'requests'},
+    {v:'reports',    icon:'chart-bar',        label:'Reports'},
+    {sec:'Config'},
+    {v:'settings',   icon:'settings',         label:'Settings'}
+  ],
+  admin:[
     {sec:'Main'},
     {v:'dashboard',  icon:'layout-dashboard', label:'Dashboard'},
     {v:'tickets',    icon:'ticket',           label:'All Queries', badge:'open'},
@@ -2095,9 +2112,10 @@ function renderDashboard(){
 
   // quick actions vary by role
   var qa='';
-  if(me.role==='superadmin'){
+  if(isAdmin(me)){
+    var createLabel = isSuperAdmin(me) ? 'Create user / admin' : 'Create user or manager';
     qa='<h2 style="font-size:14px;font-weight:600;margin-bottom:10px">Quick actions</h2><div class="qa-grid">'
-      +'<div class="qa-card" onclick="openUserModal()"><i class="ti ti-user-plus" style="color:var(--blue)"></i><span>Create user / admin</span></div>'
+      +'<div class="qa-card" onclick="openUserModal()"><i class="ti ti-user-plus" style="color:var(--blue)"></i><span>'+createLabel+'</span></div>'
       +'<div class="qa-card" onclick="nav(\'requests\')"><i class="ti ti-key" style="color:var(--amber)"></i><span>Password requests</span></div>'
       +'<div class="qa-card" onclick="openNewTicketModal()"><i class="ti ti-plus" style="color:var(--green)"></i><span>New query</span></div>'
       +'<div class="qa-card" onclick="nav(\'reports\')"><i class="ti ti-chart-bar" style="color:var(--purple)"></i><span>View reports</span></div></div>';
@@ -2141,7 +2159,7 @@ function renderTicketsList(list){
   tbody.innerHTML=list.map(function(t){
     var actions='<button class="btn sm" onclick="openDetail(\''+t.id+'\')" title="View"><i class="ti ti-eye"></i></button>';
     if(canAssign) actions+='<button class="btn sm" onclick="openAssignModal(\''+t.id+'\')" title="Assign"><i class="ti ti-user-check"></i></button>';
-    if(me.role==='superadmin') actions+='<button class="btn sm" onclick="openEditTicketModal(\''+t.id+'\')" title="Edit"><i class="ti ti-edit"></i></button>'
+    if(isAdmin(me)) actions+='<button class="btn sm" onclick="openEditTicketModal(\''+t.id+'\')" title="Edit"><i class="ti ti-edit"></i></button>'
       +'<button class="btn sm danger" onclick="deleteTicket(\''+t.id+'\')" title="Delete"><i class="ti ti-trash"></i></button>';
     return '<tr>'
       +'<td onclick="openDetail(\''+t.id+'\')" class="clickable" style="font-family:monospace;font-size:11px;color:var(--text-muted)">'+t.id+'</td>'
@@ -2192,10 +2210,14 @@ function setUserFilter(kind,val,el){
 }
 function renderUsers(){
   var all=db.users;
-  set('u-admins', all.filter(function(u){return u.role==='superadmin';}).length);
+  // Admins card counts BOTH Super Admins and Admins
+  set('u-admins', all.filter(function(u){return u.role==='superadmin'||u.role==='admin';}).length);
   set('u-managers', all.filter(function(u){return u.role==='manager';}).length);
   set('u-users', all.filter(function(u){return u.role==='user';}).length);
   set('u-total', all.length);
+  // Adapt the "Create" button label to the current viewer
+  var btn=document.getElementById('users-create-btn');
+  if(btn) btn.innerHTML='<i class="ti ti-user-plus"></i> '+(isSuperAdmin(me)?'Create user / admin':'Create user or manager');
 
   // Department filter chips (built from actual data)
   var depts=[]; all.forEach(function(u){if(depts.indexOf(u.dept)===-1)depts.push(u.dept);}); depts.sort();
@@ -2206,13 +2228,16 @@ function renderUsers(){
 
   var order={superadmin:0,manager:1,user:2};
   var list=all.filter(function(u){
-    if(userFilter.role!=='all' && u.role!==userFilter.role) return false;
+    if(userFilter.role!=='all'){
+      if(userFilter.role==='admins'){ if(u.role!=='superadmin' && u.role!=='admin') return false; }
+      else if(u.role!==userFilter.role) return false;
+    }
     if(userFilter.dept!=='all' && u.dept!==userFilter.dept) return false;
     return true;
   }).sort(function(a,b){return (order[a.role]-order[b.role])||a.name.localeCompare(b.name);});
 
   var title='All accounts';
-  if(userFilter.role!=='all') title={superadmin:'Super admins',manager:'Managers (heads of department)',user:'Users (downline)'}[userFilter.role];
+  if(userFilter.role!=='all') title={admins:'Admins (Super Admin + Admin)',superadmin:'Super admins',admin:'Admins',manager:'Managers (heads of department)',user:'Users (downline)'}[userFilter.role]||'Accounts';
   if(userFilter.dept!=='all') title += ' · ' + userFilter.dept;
   set('users-section-title', title);
 
@@ -2281,7 +2306,7 @@ function showManagerTeam(mid){
 // ─── Bulk CSV user import ────────────────────────────────
 var _bulkParsedRows = [];
 function openBulkImportModal(){
-  if(me.role!=='superadmin'){toast('Only Super Admin can import users','error');return;}
+  if(!isAdmin(me)){toast('Only Admins can import users','error');return;}
   _bulkParsedRows=[];
   document.getElementById('bulk-csv-file').value='';
   document.getElementById('bulk-preview').style.display='none';
@@ -2340,7 +2365,9 @@ function validateBulkRows(rows){
 
   var valid=[], invalid=[];
   var existingUsernames = db.users.map(function(u){return u.username.toLowerCase();});
-  var validRoles = ['superadmin','manager','user'];
+  var validRoles = ['superadmin','admin','manager','user'];
+  // Non-super admins can't bulk-create admin/superadmin accounts
+  var allowElevated = isSuperAdmin(me);
   var validDepts = deptNames().map(function(n){return n.toLowerCase();});
   var managerMap = {};
   db.users.filter(function(u){return u.role==='manager';}).forEach(function(u){managerMap[u.username.toLowerCase()]=u.id;});
@@ -2367,6 +2394,7 @@ function validateBulkRows(rows){
     if(!password) errors.push('password required');
     else if(password.length<4) errors.push('password too short');
     if(validRoles.indexOf(role)===-1) errors.push('invalid role');
+    else if(!allowElevated && (role==='admin'||role==='superadmin')) errors.push('only Super Admin can create ' +role+ ' accounts');
     if(!dept)     errors.push('department required');
     else if(validDepts.indexOf(dept.toLowerCase())===-1) errors.push('unknown department');
     if(role==='user'){
@@ -2467,7 +2495,7 @@ function renderReports(){
   set('r-note', done + ' of ' + vt.length + ' queries resolved · ' + pending + ' still pending · ' + inp + ' currently in progress.');
 
   // Workload by user table (all users in scope)
-  var users=(me.role==='superadmin')?db.users.filter(function(u){return u.role==='user'||u.role==='manager';}):
+  var users=isAdmin(me)?db.users.filter(function(u){return u.role==='user'||u.role==='manager';}):
             (me.role==='manager')?usersOfManager(me.id):[userById(me.id)];
   var uRows=users.map(function(u){
     var mine=vt.filter(function(t){return t.asgn===u.id;});
@@ -2476,7 +2504,7 @@ function renderReports(){
       inp:mine.filter(function(t){return t.st==='in-progress';}).length,
       done:mine.filter(function(t){return t.st==='resolved'||t.st==='closed';}).length,
       total:mine.length};
-  }).filter(function(r){return r.total>0 || me.role==='superadmin' || me.role==='manager';})
+  }).filter(function(r){return r.total>0 || isAdmin(me) || me.role==='manager';})
     .sort(function(a,b){return (b.open+b.inp)-(a.open+a.inp);});
   document.getElementById('user-report-tbody').innerHTML=uRows.length?uRows.map(function(r){
     return '<tr class="clickable" onclick="reportDrill(\'user\',\''+r.u.id+'\')" title="Open PDF report for '+esc(r.u.name)+'">'
@@ -2907,12 +2935,12 @@ function renderSettings(){
       +'<button class="btn primary" onclick="changeMyPassword()"><i class="ti ti-key"></i> Change password</button>'
   });
 
-  // Users list (super admin only — collapsible view of accounts)
-  if(me.role==='superadmin'){
-    var byRole = { superadmin:[], manager:[], user:[] };
+  // Users list — visible to Super Admin AND Admin
+  if(isAdmin(me)){
+    var byRole = { superadmin:[], admin:[], manager:[], user:[] };
     db.users.forEach(function(u){ if(byRole[u.role]) byRole[u.role].push(u); });
     items.push({
-      key:'accounts', icon:'users', title:'All accounts', sub:db.users.length+' user(s) · '+byRole.superadmin.length+' admin · '+byRole.manager.length+' manager · '+byRole.user.length+' user',
+      key:'accounts', icon:'users', title:'All accounts', sub:db.users.length+' user(s) · '+byRole.superadmin.length+' super · '+byRole.admin.length+' admin · '+byRole.manager.length+' mgr · '+byRole.user.length+' user',
       body:''
         +'<p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Full account list. To edit or delete, open <strong>User Management</strong>.</p>'
         +'<div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Reports to</th></tr></thead><tbody>'
@@ -2922,8 +2950,8 @@ function renderSettings(){
     });
   }
 
-  // Download all data (super admin only)
-  if(me.role==='superadmin'){
+  // Download all data — visible to Super Admin AND Admin
+  if(isAdmin(me)){
     items.push({
       key:'download', icon:'download', title:'Download all data', sub:'Export queries, users, or a full JSON backup',
       body:''
@@ -2936,8 +2964,8 @@ function renderSettings(){
     });
   }
 
-  // Where is my data stored? — SUPER ADMIN ONLY
-  if(me.role==='superadmin') items.push({
+  // Where is my data stored? — SUPER ADMIN ONLY (deployment-level info)
+  if(isSuperAdmin(me)) items.push({
     key:'storage', icon:'database', title:'Where is my data stored?', sub:'Current mode + how to switch to shared backend',
     body:''
       +'<div style="margin-bottom:10px">Current mode: <span id="storage-state"></span></div>'
@@ -2952,10 +2980,10 @@ function renderSettings(){
       +'<div class="info-box blue" style="margin-top:10px"><strong>Local mode:</strong> data lives in this browser only (key <code>hg_helpdesk_v1</code>).</div>'
   });
 
-  // Data management (super admin only)
-  if(me.role==='superadmin'){
+  // Data management — SUPER ADMIN ONLY (destructive)
+  if(isSuperAdmin(me)){
     items.push({
-      key:'reset', icon:'tool', title:'Data management', sub:'Reset all data — irreversible',
+      key:'reset', icon:'tool', title:'Data management', sub:'Reset all data — irreversible (Super Admin only)',
       body:''
         +'<p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Wipe every user, query and department and start fresh. Only the Super Admin account (Vivek) will remain. This affects <strong>everyone using this deployment</strong> — including Supabase.</p>'
         +'<button class="btn danger" onclick="resetDemo()"><i class="ti ti-refresh"></i> Reset all data</button>'
@@ -3084,7 +3112,7 @@ function renderDepartmentChips(){
   }).join('');
 }
 function addDepartment(){
-  if(me.role!=='superadmin'){toast('Only Super Admin can manage departments','error');return;}
+  if(!isAdmin(me)){toast('Only Admins can manage departments','error');return;}
   var name=document.getElementById('new-dept-name').value.trim();
   if(!name){toast('Enter a department name','error');return;}
   if(!db.departments) db.departments=[];
@@ -3094,7 +3122,7 @@ function addDepartment(){
   renderDepartmentChips(); toast('Added department "'+name+'"','success');
 }
 function removeDepartment(name){
-  if(me.role!=='superadmin'){toast('Only Super Admin can manage departments','error');return;}
+  if(!isAdmin(me)){toast('Only Admins can manage departments','error');return;}
   var usersHere=db.users.filter(function(u){return u.dept===name;}).length;
   var ticketsHere=db.tickets.filter(function(t){return t.dept===name;}).length;
   var msg='Remove department "'+name+'"?';
@@ -3104,7 +3132,7 @@ function removeDepartment(name){
   saveDB(); renderDepartmentChips(); toast('Removed "'+name+'"','info');
 }
 function addSubcategory(deptName){
-  if(me.role!=='superadmin'){toast('Only Super Admin can manage sub-categories','error');return;}
+  if(!isAdmin(me)){toast('Only Admins can manage sub-categories','error');return;}
   var input=document.getElementById('new-sub-'+deptName.replace(/[^a-zA-Z0-9]/g,'-'));
   var name=input && input.value.trim();
   if(!name){toast('Enter a sub-category name','error');return;}
@@ -3115,7 +3143,7 @@ function addSubcategory(deptName){
   renderDepartmentChips(); toast('Added sub-category "'+name+'" to '+deptName,'success');
 }
 function removeSubcategory(deptName, sub){
-  if(me.role!=='superadmin'){toast('Only Super Admin can manage sub-categories','error');return;}
+  if(!isAdmin(me)){toast('Only Admins can manage sub-categories','error');return;}
   if(!confirm('Remove sub-category "'+sub+'" from '+deptName+'?'))return;
   var d=deptByName(deptName); if(!d)return;
   d.subs=(d.subs||[]).filter(function(s){return s!==sub;});
@@ -3161,7 +3189,7 @@ function openDetail(id){
 
   // assigned + reassign control (respect the admin-lock rule)
   var asgnHtml='<span>'+ (t.asgn?esc(userName(t.asgn)):'Unassigned') +(t.adminLocked?' <span class="badge purple" style="font-size:9px;padding:1px 5px">🔒 Locked</span>':'')+'</span>';
-  var canReassign = (me.role==='superadmin') || (me.role==='manager' && !(t.asgn===me.id && t.adminLocked));
+  var canReassign = isAdmin(me) || (me.role==='manager' && !(t.asgn===me.id && t.adminLocked));
   if(canReassign) asgnHtml+='<button class="btn xs" style="margin-left:5px" onclick="openAssignModal(\''+t.id+'\')"><i class="ti ti-user-check"></i> Assign</button>';
   document.getElementById('dp-asgn-wrap').innerHTML=asgnHtml;
 
@@ -3174,7 +3202,7 @@ function openDetail(id){
       hdr+='<button class="btn sm" onclick="notifyAssignee(\''+t.id+'\')" title="Email '+esc(au.name)+' about this ticket"><i class="ti ti-mail"></i> Notify</button>';
     }
   }
-  if(me.role==='superadmin') hdr+='<button class="btn sm warning" onclick="openEditTicketModal(\''+t.id+'\')" title="Edit"><i class="ti ti-edit"></i></button>'
+  if(isAdmin(me)) hdr+='<button class="btn sm warning" onclick="openEditTicketModal(\''+t.id+'\')" title="Edit"><i class="ti ti-edit"></i></button>'
     +'<button class="btn sm danger" onclick="deleteTicket(\''+t.id+'\')" title="Delete"><i class="ti ti-trash"></i></button>';
   hdr+='<button class="btn sm" onclick="closeDetail()"><i class="ti ti-x"></i></button>';
   document.getElementById('dp-header-actions').innerHTML=hdr;
@@ -3308,7 +3336,7 @@ function notifyRequesterOfResolution(ticketId, statusLabel){
 //   • User         — cannot assign
 function fillAssignSelect(selectId, selectedVal){
   var opts='<option value="">— Unassigned —</option>';
-  if(me.role==='superadmin'){
+  if(isAdmin(me)){
     var mgrs=db.users.filter(function(u){return u.role==='manager';});
     if(mgrs.length){
       opts+='<optgroup label="Assign to a Manager (they must handle it themselves)">'
@@ -3409,7 +3437,7 @@ function asgnManager(asgn){
   return null;
 }
 function deleteTicket(id){
-  if(me.role!=='superadmin'){toast('Only Super Admin can delete tickets','error');return;}
+  if(!isAdmin(me)){toast('Only Admins can delete tickets','error');return;}
   if(!confirm('Delete ticket '+id+'? This cannot be undone.'))return;
   db.tickets=db.tickets.filter(function(t){return t.id!==id;});
   saveDB();
@@ -3439,7 +3467,7 @@ function saveAssign(){
   t.asgn=newA; t.managerId=asgnManager(newA); t.updated=new Date().toISOString();
   // Lock ticket to the manager if Super Admin assigned it directly to one — prevents re-delegation
   var newAssignee = newA ? userById(newA) : null;
-  if(me.role==='superadmin' && newAssignee && newAssignee.role==='manager') t.adminLocked = true;
+  if(isAdmin(me) && newAssignee && newAssignee.role==='manager') t.adminLocked = true;
   else if(newA) delete t.adminLocked;
   var msg=newA?('Assigned to '+userName(newA)+' by '+me.name)+(t.adminLocked?' (locked to this manager)':''):('Unassigned by '+me.name);
   t.log.push({type:'assign',msg:msg+(note?' — '+note:''),user:me.name,at:new Date().toISOString()});
@@ -3509,7 +3537,18 @@ function fillManagerSelect(selected){
   if(selected)document.getElementById('us-manager').value=selected;
 }
 function openUserModal(id){
-  if(me.role!=='superadmin'){toast('Only Super Admin can manage users','error');return;}
+  if(!isAdmin(me)){toast('Only Admins can manage users','error');return;}
+  // Admin (non-super) can only create/edit manager or user — not Super Admin or Admin
+  var roleSel=document.getElementById('us-role');
+  if(roleSel){
+    var opts;
+    if(isSuperAdmin(me)){
+      opts='<option value="user">User</option><option value="manager">Manager</option><option value="admin">Admin</option><option value="superadmin">Super Admin</option>';
+    } else {
+      opts='<option value="user">User</option><option value="manager">Manager</option>';
+    }
+    roleSel.innerHTML=opts;
+  }
   fillManagerSelect();
   if(id){
     var u=userById(id); if(!u)return;
@@ -3545,11 +3584,19 @@ function saveUser(){
   if(!name||!username||!pass){toast('Name, username and password are required','error');return;}
   if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Email format looks invalid','error');return;}
   if(role==='user'&&!mgr){toast('Assign this user to a manager','error');return;}
+  // Only Super Admin can create/promote to Admin or Super Admin
+  if(!isSuperAdmin(me) && (role==='admin'||role==='superadmin')){
+    toast('Only Super Admin can create or assign the Admin / Super Admin role','error');return;
+  }
   var editId=document.getElementById('edit-user-id').value;
   var dupe=db.users.find(function(u){return u.username===username && u.id!==editId;});
   if(dupe){toast('That username is already taken','error');return;}
   if(editId){
     var u=userById(editId); if(!u)return;
+    // Admin (non-super) cannot edit Admins or Super Admins
+    if(!isSuperAdmin(me) && (u.role==='admin'||u.role==='superadmin')){
+      toast('Only Super Admin can edit an Admin or Super Admin account','error');return;
+    }
     u.name=name;u.username=username;u.email=email;u.password=pass;u.role=role;u.dept=dept;u.managerId=mgr;
     toast('User updated','success');
   } else {
@@ -3561,6 +3608,10 @@ function saveUser(){
 function deleteUser(id){
   var u=userById(id); if(!u)return;
   if(u.id===me.id){toast('You cannot delete your own account','error');return;}
+  // Only Super Admin can delete an Admin or Super Admin
+  if(!isSuperAdmin(me) && (u.role==='admin'||u.role==='superadmin')){
+    toast('Only Super Admin can delete an Admin or Super Admin account','error');return;
+  }
   var assigned=db.tickets.filter(function(t){return t.asgn===id;}).length;
   var msg='Delete user "'+u.name+'"?';
   if(u.role==='manager'){var team=usersOfManager(id).length; if(team)msg+='\n\n'+team+' user(s) report to this manager — they will become unassigned to a manager.';}
