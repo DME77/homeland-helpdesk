@@ -1421,7 +1421,9 @@ function initStorage(){
           // Realtime — pull in updates from other devices
           supa.channel('hg_state_ch').on('postgres_changes',{event:'*',schema:'public',table:'hg_state'}, function(payload){
             if(!payload.new || !payload.new.data)return;
+            var oldTickets = (db && db.tickets) ? db.tickets.slice() : [];
             db = payload.new.data; ensureDefaults();
+            detectAndNotify(oldTickets, db.tickets||[]);
             if(me){
               var still = db.users.find(function(u){return u.id===me.id;});
               if(still){ me=still; if(document.getElementById('screen-app').style.display==='block'){refreshCurrent();if(activeTicket){var t=db.tickets.find(function(x){return x.id===activeTicket.id;}); if(t)openDetail(t.id); else closeDetail();}} }
@@ -1467,6 +1469,126 @@ function userById(id){ return db.users.find(function(u){return u.id===id;})||nul
 function userName(id){ var u=userById(id); return u?u.name:'—'; }
 function usersOfManager(mid){ return db.users.filter(function(u){return u.role==='user'&&u.managerId===mid;}); }
 function initials(name){ return (name||'?').split(/\s+/).map(function(w){return w[0];}).join('').slice(0,2).toUpperCase(); }
+// Compares two ticket lists and pops in-app notifications for anything RELEVANT to the current user
+function detectAndNotify(oldTickets, newTickets){
+  if(!me) return;
+  var oldById = {}; oldTickets.forEach(function(t){oldById[t.id]=t;});
+  newTickets.forEach(function(t){
+    var prev = oldById[t.id];
+    // Is this ticket in my scope? (admin/superadmin see everything, manager sees dept, user sees assignments)
+    var visible = isAdmin(me)
+      || (me.role==='manager' && (t.dept===me.dept || t.managerId===me.id || (t.asgn && (userById(t.asgn)||{}).managerId===me.id)))
+      || (me.role==='user' && t.asgn===me.id);
+    if(!visible) return;
+    // Newly created ticket (didn't exist before)
+    if(!prev){
+      // Don't notify if I created it myself
+      if(t.log && t.log[0] && t.log[0].user===me.name) return;
+      showNewTicketPopup(t);
+      return;
+    }
+    // Newly assigned to me (or a change of assignee that lands on me)
+    if(prev.asgn !== t.asgn && t.asgn === me.id){
+      showAssignedPopup(t, 'This query has just been assigned to you.');
+      return;
+    }
+    // Status changed to resolved/closed on one of my tickets → light notification
+    if(prev.st !== t.st && (t.st==='resolved' || t.st==='closed') && me.role==='user' && t.asgn===me.id){
+      showAssignedPopup(t, 'Status is now: '+t.st);
+    }
+  });
+}
+
+// ─── Notifications (sound + browser desktop + in-app toast) ─────────
+// Two-tone chime using Web Audio (no external audio file needed).
+function playNotifSound(){
+  try{
+    var AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+    var ctx = new AC();
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='sine';
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.setValueAtTime(1174, ctx.currentTime+0.14);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.28, ctx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.45);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+0.5);
+  }catch(e){}
+}
+function askNotifPermission(){
+  if(!('Notification' in window) || Notification.permission!=='default') return;
+  Notification.requestPermission();
+}
+function showBrowserNotif(title, body){
+  if(!('Notification' in window)) return;
+  if(Notification.permission==='granted'){
+    try{ var n = new Notification(title, {body:body, icon:'logo.png', tag:'homeland-helpdesk'});
+      n.onclick = function(){ window.focus(); n.close(); };
+    }catch(e){}
+  }
+}
+// A big pop-up card in the top-right that says "New ticket!" and plays the chime.
+// Auto-dismisses after 8s, click to open the ticket, or × to close.
+function showNewTicketPopup(t){
+  playNotifSound();
+  showBrowserNotif('New Homeland Helpdesk ticket', t.id+' — '+t.title);
+  var wrap = document.getElementById('inapp-notifs');
+  if(!wrap){ wrap = document.createElement('div'); wrap.id='inapp-notifs'; wrap.style.cssText='position:fixed;top:60px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:340px'; document.body.appendChild(wrap); }
+  var typeLabel = {query:'Query',error:'Error',training:'Training',requirement:'Requirement',request:'Service request',change:'Change request',problem:'Problem',complaint:'Complaint'}[t.type]||t.type;
+  var card = document.createElement('div');
+  card.className='new-ticket-notif';
+  card.style.cssText='background:var(--surface-2);border:1px solid var(--red);border-left:5px solid var(--red);border-radius:12px;padding:12px 14px;box-shadow:0 8px 30px rgba(0,0,0,.2);animation:slideup .2s ease;cursor:pointer;font-family:inherit';
+  card.innerHTML =
+    '<div style="display:flex;align-items:flex-start;gap:8px">'
+      +'<i class="ti ti-bell-ringing" style="font-size:22px;color:var(--red);animation:pulseDot 1.2s ease-in-out infinite"></i>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">New '+esc(typeLabel)+' · '+esc(t.id)+'</div>'
+        +'<div style="font-size:13px;font-weight:600;line-height:1.3">'+esc(t.title)+'</div>'
+        +'<div style="font-size:11px;color:var(--text-muted);margin-top:3px">From '+esc(t.req)+' · '+esc(t.dept)+(t.subcat?' → '+esc(t.subcat):'')+'</div>'
+      +'</div>'
+      +'<button class="btn xs" onclick="event.stopPropagation();this.parentElement.parentElement.remove()" style="padding:2px 6px"><i class="ti ti-x"></i></button>'
+    +'</div>';
+  card.onclick = function(){ card.remove(); if(document.getElementById('screen-app').style.display==='block'){ openDetail(t.id); } };
+  wrap.appendChild(card);
+  setTimeout(function(){ if(card.parentNode) card.remove(); }, 12000);
+}
+// Called when a ticket is assigned to me (or when I'm the department manager and something new lands)
+function showAssignedPopup(t, msg){
+  playNotifSound();
+  showBrowserNotif('Homeland Helpdesk', msg);
+  var wrap = document.getElementById('inapp-notifs');
+  if(!wrap){ wrap = document.createElement('div'); wrap.id='inapp-notifs'; wrap.style.cssText='position:fixed;top:60px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:340px'; document.body.appendChild(wrap); }
+  var card = document.createElement('div');
+  card.style.cssText='background:var(--surface-2);border:1px solid var(--amber);border-left:5px solid var(--amber);border-radius:12px;padding:12px 14px;box-shadow:0 8px 30px rgba(0,0,0,.2);animation:slideup .2s ease;cursor:pointer';
+  card.innerHTML =
+    '<div style="display:flex;align-items:flex-start;gap:8px">'
+      +'<i class="ti ti-user-check" style="font-size:22px;color:var(--amber)"></i>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Assigned to you · '+esc(t.id)+'</div>'
+        +'<div style="font-size:13px;font-weight:600;line-height:1.3">'+esc(t.title)+'</div>'
+        +'<div style="font-size:11px;color:var(--text-muted);margin-top:3px">'+esc(msg)+'</div>'
+      +'</div>'
+      +'<button class="btn xs" onclick="event.stopPropagation();this.parentElement.parentElement.remove()" style="padding:2px 6px"><i class="ti ti-x"></i></button>'
+    +'</div>';
+  card.onclick = function(){ card.remove(); if(document.getElementById('screen-app').style.display==='block'){ openDetail(t.id); } };
+  wrap.appendChild(card);
+  setTimeout(function(){ if(card.parentNode) card.remove(); }, 12000);
+}
+
+// Opens Gmail's compose window in a new tab (uses the browser's logged-in Gmail session).
+// Falls back to mailto: only if popup is blocked.
+function openMail(email, subject, body){
+  var url = 'https://mail.google.com/mail/?view=cm&fs=1'
+    + '&to='+encodeURIComponent(email||'')
+    + (subject?('&su='+encodeURIComponent(subject)):'')
+    + (body?('&body='+encodeURIComponent(body)):'');
+  var win = window.open(url, '_blank', 'noopener');
+  if(!win){
+    // popup blocked — fall back to system mailto
+    window.location.href = 'mailto:'+encodeURIComponent(email||'')+(subject?'?subject='+encodeURIComponent(subject):'')+(body?'&body='+encodeURIComponent(body):'');
+  }
+}
 // Render a user's avatar: if they have a photo → show it; else fall back to initials.
 function avatarHtml(user, size){
   size = size || 30;
@@ -1637,6 +1759,8 @@ function doLogin(){
   document.getElementById('login-pass').value='';
   showScreen('app'); renderApp();
   toast('Welcome, '+me.name.split(' ')[0]+'!','success');
+  // Ask for desktop-notification permission on first successful login (browser shows its own prompt)
+  askNotifPermission();
 }
 function logout(){
   me=null; localStorage.removeItem(SESSION_KEY);
@@ -3321,8 +3445,8 @@ function notifyRequesterOfResolution(ticketId, statusLabel){
     '',
     '— The Homeland Helpdesk team'
   ].join('\n');
-  window.location.href = 'mailto:'+encodeURIComponent(t.reqEmail)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
-  toast('Opening email to '+t.req+'…','success');
+  openMail(t.reqEmail, subject, body);
+  toast('Opening Gmail to notify '+t.req+'…','success');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3520,8 +3644,8 @@ function notifyAssignee(ticketId, alsoRequester){
     '',
     'Sent by '+me.name+' via Homeland Helpdesk.'
   ].join('\n');
-  window.location.href = 'mailto:'+encodeURIComponent(target.email)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
-  toast('Opening email to '+target.name+'…','success');
+  openMail(target.email, subject, body);
+  toast('Opening Gmail to notify '+target.name+'…','success');
 }
 
 // ═══════════════════════════════════════════════════════
