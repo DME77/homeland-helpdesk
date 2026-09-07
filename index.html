@@ -532,6 +532,24 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
   .land-brand .name{font-size:18px}
   .land-btn{padding:9px 16px;font-size:13px}
 }
+/* ── @mentions ── */
+.mention{background:var(--blue-bg);color:var(--blue-text);border-radius:4px;padding:0 3px;font-weight:600}
+.mention-dropdown{position:absolute;bottom:calc(100% + 4px);left:0;right:0;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:60;overflow:hidden;max-height:220px;overflow-y:auto}
+.mention-opt{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)}
+.mention-opt:last-child{border-bottom:none}
+.mention-opt.active,.mention-opt:hover{background:var(--blue-bg)}
+/* ── notification bell + panel ── */
+.notif-bell{position:relative;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-secondary);border:1px solid transparent}
+.notif-bell:hover{background:var(--surface-1);border-color:var(--border)}
+.notif-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1}
+.notif-panel{position:absolute;bottom:64px;left:12px;right:12px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.22);z-index:70;max-height:360px;display:flex;flex-direction:column;overflow:hidden}
+.notif-panel-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600}
+#notif-panel-body{overflow-y:auto}
+.notif-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer}
+.notif-item:hover{background:var(--surface-1)}
+.notif-item.unread{background:var(--blue-bg)}
+.notif-item.unread:hover{filter:brightness(.98)}
+.notif-dot{width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0}
 </style>
 </head>
 <body>
@@ -783,9 +801,17 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
       <div class="user-row">
         <div class="avatar" id="sb-avatar">SG</div>
         <div class="avatar-name"><div class="name" id="sb-name">—</div><div class="role" id="sb-role">—</div></div>
+        <div class="notif-bell" onclick="toggleNotifPanel()" title="Mentions">
+          <i class="ti ti-bell" style="font-size:16px"></i>
+          <span class="notif-badge" id="notif-badge" style="display:none">0</span>
+        </div>
         <div class="theme-toggle" onclick="toggleTheme()" title="Toggle dark/light mode">
           <i class="ti ti-moon" id="theme-icon" style="font-size:16px"></i>
         </div>
+      </div>
+      <div class="notif-panel" id="notif-panel" style="display:none">
+        <div class="notif-panel-head"><span><i class="ti ti-at"></i> Mentions</span><button class="btn xs" onclick="markAllNotifRead()">Mark all read</button></div>
+        <div id="notif-panel-body"></div>
       </div>
       <button class="btn sm block" style="margin-top:10px" onclick="logout()"><i class="ti ti-logout"></i> Sign out</button>
     </div>
@@ -1043,13 +1069,17 @@ html.dark .land-foot{border-color:rgba(255,255,255,.06)}
             <div class="detail-section-label">Comments &amp; activity</div>
             <div class="timeline" id="dp-timeline"></div>
             <div id="comment-image-preview" style="margin-top:8px"></div>
-            <div class="comment-input-wrap" style="margin-top:10px">
-              <textarea id="comment-input" placeholder="Add a comment or update…" rows="2"></textarea>
-              <label class="btn sm" style="cursor:pointer;flex-shrink:0" title="Attach an image">
-                <i class="ti ti-paperclip"></i>
-                <input type="file" id="comment-image" accept="image/*" style="display:none" onchange="stageCommentImage(this)">
-              </label>
-              <button class="btn primary sm" onclick="addComment()" title="Send"><i class="ti ti-send"></i></button>
+            <div style="position:relative">
+              <div class="mention-dropdown" id="mention-dropdown" style="display:none"></div>
+              <div class="comment-input-wrap" style="margin-top:10px">
+                <textarea id="comment-input" placeholder="Add a comment… use @ to mention someone" rows="2"
+                  oninput="onCommentInput()" onkeydown="onCommentKeydown(event)"></textarea>
+                <label class="btn sm" style="cursor:pointer;flex-shrink:0" title="Attach an image">
+                  <i class="ti ti-paperclip"></i>
+                  <input type="file" id="comment-image" accept="image/*" style="display:none" onchange="stageCommentImage(this)">
+                </label>
+                <button class="btn primary sm" onclick="addComment()" title="Send"><i class="ti ti-send"></i></button>
+              </div>
             </div>
           </div>
         </div>
@@ -1337,6 +1367,154 @@ var DB_KEY='hg_helpdesk_v1', SESSION_KEY='hg_session_v1', THEME_KEY='hg_theme';
 var db=null, me=null, filter='all', activeTicket=null;
 var supa=null, useSupa=false;
 
+// ═══════════════════════════════════════════════════════
+//  CONCURRENCY-SAFE SYNC
+//  The whole app state lives in one Supabase row. Writes used to overwrite that
+//  row wholesale, so a second person acting on a slightly stale copy silently
+//  wiped the first person's tickets/updates (the "disappearing tickets" bug).
+//  Now every write is a compare-and-swap on the row's `updated` version; on a
+//  conflict we re-read, MERGE (union — never drop a ticket), and retry.
+//  `lastRowUpdated` is the version of the row we last saw.
+//  `_tombstones` records things WE deleted this session so a union merge does
+//  not resurrect them.
+// ═══════════════════════════════════════════════════════
+var lastRowUpdated = null;
+var _tombstones = { tickets:{}, users:{}, passwordRequests:{}, departments:{} };
+
+function _logSig(l){ return [l.type, l.at, l.user, l.msg, (l.image?'img':'')].join('|'); }
+function _mergeLogs(a, b){
+  a = Array.isArray(a) ? a : []; b = Array.isArray(b) ? b : [];
+  var seen = {}, out = [];
+  a.concat(b).forEach(function(l){
+    if(!l) return;
+    var k = _logSig(l);
+    if(seen[k]) return;
+    seen[k] = 1; out.push(l);
+  });
+  out.sort(function(x, y){ return new Date(x.at||0) - new Date(y.at||0); });
+  return out;
+}
+// true if a is newer-or-equal to b by its own updated/at stamp (ties -> a)
+function _newer(a, b){
+  var ta = new Date((a && (a.updated || a.at)) || 0).getTime();
+  var tb = new Date((b && (b.updated || b.at)) || 0).getTime();
+  return ta >= tb;
+}
+function _mergeById(remoteArr, localArr, idKey, tombstones, opts){
+  remoteArr = Array.isArray(remoteArr) ? remoteArr : [];
+  localArr  = Array.isArray(localArr)  ? localArr  : [];
+  tombstones = tombstones || {}; opts = opts || {};
+  var byId = {}, order = [];
+  function put(item){
+    if(!item) return;
+    var id = item[idKey];
+    if(id == null || tombstones[id]) return;   // deleted this session -> never resurrect
+    if(!(id in byId)){ byId[id] = item; order.push(id); return; }
+    var cur = byId[id];
+    var winner = _newer(item, cur) ? item : cur;
+    if(opts.mergeLogs){ winner = Object.assign({}, winner); winner.log = _mergeLogs(cur.log, item.log); }
+    byId[id] = winner;
+  }
+  remoteArr.forEach(put);   // remote first
+  localArr.forEach(put);    // local second (ties -> local, the actor, wins)
+  return order.map(function(id){ return byId[id]; });
+}
+function _mergeDepartments(r, l, tombstones){
+  r = Array.isArray(r) ? r : []; l = Array.isArray(l) ? l : []; tombstones = tombstones || {};
+  var byName = {}, order = [];
+  function put(d){
+    if(!d || !d.name || tombstones[d.name]) return;
+    var subs = Array.isArray(d.subs) ? d.subs : [];
+    if(!(d.name in byName)){ byName[d.name] = { name: d.name, subs: subs.slice() }; order.push(d.name); }
+    else { subs.forEach(function(s){ if(byName[d.name].subs.indexOf(s) === -1) byName[d.name].subs.push(s); }); }
+  }
+  r.forEach(put); l.forEach(put);
+  return order.map(function(n){ return byName[n]; });
+}
+function _pickTicket(cur, item){
+  var winner = _newer(item, cur) ? item : cur;
+  winner = Object.assign({}, winner);
+  winner.log = _mergeLogs(cur.log, item.log);   // never drop a comment / status entry
+  return winner;
+}
+// Same id + DIFFERENT created = two stale clients both used ++seq -> keep BOTH
+// by re-id-ing the local one. Same id + same created = a normal concurrent edit.
+function _mergeTickets(remote, local, tombstones, seqRef){
+  remote = Array.isArray(remote) ? remote : []; local = Array.isArray(local) ? local : [];
+  tombstones = tombstones || {};
+  var byId = {}, order = [];
+  function sameTicket(a, b){ return (a.created||'') === (b.created||''); }
+  remote.forEach(function(t){
+    if(!t || t.id == null || tombstones[t.id]) return;
+    if(!(t.id in byId)){ byId[t.id] = t; order.push(t.id); }
+    else { byId[t.id] = _pickTicket(byId[t.id], t); }
+  });
+  local.forEach(function(t){
+    if(!t || t.id == null || tombstones[t.id]) return;
+    if((t.id in byId) && !sameTicket(byId[t.id], t)){
+      var newId = 'TKT-' + (++seqRef.v);
+      t = Object.assign({}, t, { id: newId });
+      byId[newId] = t; order.push(newId);
+      return;
+    }
+    if(!(t.id in byId)){ byId[t.id] = t; order.push(t.id); }
+    else { byId[t.id] = _pickTicket(byId[t.id], t); }
+  });
+  return order.map(function(id){ return byId[id]; });
+}
+// Notifications (mention alerts) union by id; `read` is monotonic (once read on
+// any device, stays read) so an OR across both sides is the safe merge.
+function _mergeNotifications(remote, local){
+  remote = Array.isArray(remote) ? remote : []; local = Array.isArray(local) ? local : [];
+  var byId = {}, order = [];
+  function put(n){
+    if(!n || n.id == null) return;
+    if(!(n.id in byId)){ byId[n.id] = n; order.push(n.id); }
+    else { var cur = byId[n.id]; byId[n.id] = Object.assign({}, cur, n, { read: !!(cur.read || n.read) }); }
+  }
+  remote.forEach(put); local.forEach(put);
+  return order.map(function(id){ return byId[id]; });
+}
+// Union-merge canonical remote state with our local copy so nothing is dropped.
+function mergeState(remote, local){
+  remote = remote || {}; local = local || {};
+  var out = {};
+  var seqRef = { v: Math.max(Number(remote.seq)||0, Number(local.seq)||0) };
+  out.tickets          = _mergeTickets(remote.tickets, local.tickets, _tombstones.tickets, seqRef);
+  out.users            = _mergeById(remote.users,            local.users,            'id', _tombstones.users,            {});
+  out.passwordRequests = _mergeById(remote.passwordRequests, local.passwordRequests, 'id', _tombstones.passwordRequests, {});
+  out.departments      = _mergeDepartments(remote.departments, local.departments, _tombstones.departments);
+  out.notifications    = _mergeNotifications(remote.notifications, local.notifications);
+  out.seq              = seqRef.v;
+  Object.keys(remote).forEach(function(k){ if(!(k in out)) out[k] = remote[k]; });
+  Object.keys(local ).forEach(function(k){ if(!(k in out)) out[k] = local[k];  });
+  return out;
+}
+// Light re-render after a background merge pulled in others' changes, WITHOUT
+// closing an open ticket panel (unlike nav()).
+function _afterMergeRefresh(){
+  if(!me) return;
+  var appEl = document.getElementById('screen-app');
+  if(!appEl || appEl.style.display !== 'block') return;
+  try{
+    renderNav();
+    renderNotifBell();
+    if(currentView==='dashboard') renderDashboard();
+    else if(currentView==='tickets') renderTickets();
+    else if(currentView==='team') renderTeam();
+    else if(currentView==='users') renderUsers();
+    else if(currentView==='reports') renderReports();
+    else if(currentView==='requests') renderPasswordRequests();
+    if(activeTicket){
+      var t = db.tickets.find(function(x){ return x.id===activeTicket.id; });
+      if(t){ activeTicket = t;
+        var tl=document.getElementById('dp-timeline'); if(tl) tl.innerHTML=buildTimeline(t.log||[], t.id);
+        var ds=document.getElementById('dp-status'); if(ds) ds.innerHTML=stBadge(t.st);
+      }
+    }
+  }catch(e){ console.error('post-merge refresh failed', e); }
+}
+
 var AI_TIPS={
   incident:'• Check service status and recent changes first\n• Escalate to vendor if hardware is involved\n• Notify affected users with an ETA',
   change:'• Ensure a rollback plan is documented\n• Schedule inside an approved maintenance window\n• Get manager sign-off for high-impact changes',
@@ -1366,6 +1544,7 @@ function seedDB(){
       {name:'Security',       subs:[]}
     ],
     passwordRequests:[],
+    notifications:[],
     seq:1000
   };
 }
@@ -1375,6 +1554,7 @@ function ensureDefaults(){
   if(!Array.isArray(db.users)) db.users=[];
   if(!Array.isArray(db.tickets)) db.tickets=[];
   if(!Array.isArray(db.passwordRequests)) db.passwordRequests=[];
+  if(!Array.isArray(db.notifications)) db.notifications=[];
   if(!Array.isArray(db.departments) || !db.departments.length){
     db.departments=[
       {name:'Administration', subs:[]},
@@ -1395,6 +1575,115 @@ function deptNames(){ return (db.departments||[]).map(function(d){return d.name;
 function deptByName(name){ return (db.departments||[]).find(function(d){return d.name===name;}) || null; }
 function deptSubs(name){ var d=deptByName(name); return d && Array.isArray(d.subs) ? d.subs : []; }
 
+// ═══════════════════════════════════════════════════════
+//  FEATURE HELPERS  (mentions · attachments · resolution confirmation)
+// ═══════════════════════════════════════════════════════
+function uid(prefix){ return (prefix||'ID')+'-'+Date.now().toString(36).toUpperCase()+Math.floor(Math.random()*100000).toString(36).toUpperCase(); }
+
+// ── @Mentions ──────────────────────────────────────────
+// Parse a comment for @mentions, matching the LONGEST full name (names may have
+// spaces) or a username, case-insensitively, against the user directory.
+// Returns { ids:[userId,...], names:{userId:matchedName} }.
+function parseMentions(text){
+  text = String(text||'');
+  var users = (db && db.users) ? db.users : [];
+  var ids = [], nameMap = {};
+  // Candidate targets: each user's full name and username.
+  var targets = [];
+  users.forEach(function(u){
+    if(u.name)     targets.push({ id:u.id, label:u.name,     pri:0 });
+    if(u.username) targets.push({ id:u.id, label:u.username, pri:1 });
+  });
+  // Longest label first so "@Priya Sharma" wins over "@Priya"; on a tie, prefer
+  // a full-name match over a username match so results are deterministic.
+  targets.sort(function(a,b){ return (b.label.length - a.label.length) || (a.pri - b.pri); });
+  var lower = text.toLowerCase();
+  var claimed = [];  // [start,end) ranges already matched, to avoid overlaps
+  targets.forEach(function(tg){
+    var needle = '@' + tg.label.toLowerCase();
+    var from = 0, idx;
+    while((idx = lower.indexOf(needle, from)) !== -1){
+      var end = idx + needle.length;
+      // must be a word boundary after the label (space, punctuation, or end)
+      var after = text.charAt(end);
+      var boundary = (after === '' || /[\s.,;:!?)\]]/.test(after));
+      var overlaps = claimed.some(function(r){ return idx < r[1] && end > r[0]; });
+      if(boundary && !overlaps){
+        claimed.push([idx, end]);
+        if(ids.indexOf(tg.id) === -1){ ids.push(tg.id); nameMap[tg.id] = tg.label; }
+      }
+      from = idx + 1;
+    }
+  });
+  return { ids: ids, names: nameMap };
+}
+// Escape a comment for display, then highlight any @mentions of known users.
+function renderCommentText(msg, mentionIds){
+  var safe = esc(msg);
+  var ids = mentionIds || [];
+  ids.forEach(function(id){
+    var u = userById(id); if(!u) return;
+    [u.name, u.username].forEach(function(label){
+      if(!label) return;
+      var token = esc('@' + label);
+      // global, boundary-aware replace on the escaped string
+      var re = new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(?=$|[\\s.,;:!?)\\]])', 'g');
+      safe = safe.replace(re, '<span class="mention">@'+esc(label)+'</span>');
+    });
+  });
+  return safe;
+}
+
+// ── Attachments (download) ─────────────────────────────
+function _dataUrlMime(dataUrl){
+  var m = /^data:([^;,]+)[;,]/.exec(String(dataUrl||''));
+  return m ? m[1] : '';
+}
+function dataUrlExt(dataUrl){
+  var mime = _dataUrlMime(dataUrl);
+  var map = { 'image/jpeg':'jpg','image/jpg':'jpg','image/png':'png','image/gif':'gif','image/webp':'webp',
+              'image/svg+xml':'svg','image/heic':'heic','application/pdf':'pdf','text/plain':'txt' };
+  if(map[mime]) return map[mime];
+  var sub = mime.split('/')[1] || 'bin';
+  return sub.replace(/[^a-z0-9]+/gi,'') || 'bin';
+}
+function attachmentFilename(ticketId, kind, index, dataUrl){
+  var base = (ticketId||'ticket') + '-' + (kind||'attachment');
+  if(index != null) base += '-' + (index+1);
+  return base + '.' + dataUrlExt(dataUrl);
+}
+// A download control for a base64 data-URL attachment (works on the real site).
+function downloadLink(dataUrl, filename, label){
+  return '<a class="btn xs" href="'+dataUrl+'" download="'+esc(filename)+'" '
+    + 'style="margin-top:4px;text-decoration:none" title="Download '+esc(filename)+'">'
+    + '<i class="ti ti-download"></i> '+(label||'Download')+'</a>';
+}
+
+// ── Resolution confirmation + auto-close ───────────────
+var AUTO_CLOSE_DAYS = 7;
+function isResolvedPending(t){ return t && t.st==='resolved'; }
+// Lazily auto-close tickets that have sat "resolved" (awaiting requester
+// confirmation) longer than AUTO_CLOSE_DAYS. Client-side because the app has no
+// server cron. Idempotent + merge-safe. Returns true if anything changed.
+function sweepAutoClose(){
+  if(!db || !Array.isArray(db.tickets)) return false;
+  var now = Date.now(), cutoff = AUTO_CLOSE_DAYS*24*3600*1000, changed = false;
+  db.tickets.forEach(function(t){
+    if(t.st !== 'resolved') return;
+    // Legacy tickets resolved before this feature have no resolvedAt — give them
+    // a FRESH confirmation window from now rather than closing them immediately.
+    if(!t.resolvedAt){ t.resolvedAt = new Date(now).toISOString(); changed = true; return; }
+    if(now - new Date(t.resolvedAt).getTime() > cutoff){
+      t.st = 'closed'; t.closedReason = 'timeout'; t.closedAt = new Date(now).toISOString(); t.updated = t.closedAt;
+      t.log = t.log || [];
+      t.log.push({ type:'status', msg:'Auto-closed after '+AUTO_CLOSE_DAYS+' days with no requester confirmation', user:'System', at:t.closedAt });
+      changed = true;
+    }
+  });
+  if(changed) saveDB();
+  return changed;
+}
+
 // ─── Persistence — Supabase (shared) if configured, else localStorage ───
 function initStorage(){
   // If Supabase credentials are set AND the SDK loaded, use the shared backend
@@ -1402,7 +1691,7 @@ function initStorage(){
     try{
       supa = window.supabase.createClient(HG_SUPABASE_URL, HG_SUPABASE_KEY, {realtime:{params:{eventsPerSecond:10}}});
       useSupa = true;
-      return supa.from('hg_state').select('data').eq('id',1).maybeSingle()
+      return supa.from('hg_state').select('data,updated').eq('id',1).maybeSingle()
         .then(function(res){
           if(res.error){
             console.error('Supabase load error:', res.error);
@@ -1411,22 +1700,32 @@ function initStorage(){
           }
           if(res.data && res.data.data && res.data.data.users && res.data.data.users.length){
             db = res.data.data; ensureDefaults();
+            lastRowUpdated = res.data.updated;            // remember the version we loaded
           } else {
             // First-time init — seed the backend
             db = seedDB();
-            return supa.from('hg_state').upsert({id:1, data: db, updated:new Date().toISOString()}).then(function(){});
+            var seedTs = new Date().toISOString();
+            return supa.from('hg_state').upsert({id:1, data: db, updated:seedTs}).select('updated').then(function(up){
+              lastRowUpdated = (up && up.data && up.data[0] && up.data[0].updated) || seedTs;
+            });
           }
         })
         .then(function(){
-          // Realtime — pull in updates from other devices
+          // Realtime — pull in updates from other devices. Because every WRITE
+          // now merges into canonical server state, the row is always the full
+          // union of everyone's changes, so replacing our local copy from it is
+          // safe (and correctly propagates deletions).
           supa.channel('hg_state_ch').on('postgres_changes',{event:'*',schema:'public',table:'hg_state'}, function(payload){
             if(!payload.new || !payload.new.data)return;
             var oldTickets = (db && db.tickets) ? db.tickets.slice() : [];
+            var oldNotifs = (db && db.notifications) ? db.notifications.slice() : [];
             db = payload.new.data; ensureDefaults();
+            if(payload.new.updated) lastRowUpdated = payload.new.updated;
             detectAndNotify(oldTickets, db.tickets||[]);
+            notifyNewMentions(oldNotifs);
             if(me){
               var still = db.users.find(function(u){return u.id===me.id;});
-              if(still){ me=still; if(document.getElementById('screen-app').style.display==='block'){refreshCurrent();if(activeTicket){var t=db.tickets.find(function(x){return x.id===activeTicket.id;}); if(t)openDetail(t.id); else closeDetail();}} }
+              if(still){ me=still; renderNotifBell(); if(document.getElementById('screen-app').style.display==='block'){refreshCurrent();if(activeTicket){var t=db.tickets.find(function(x){return x.id===activeTicket.id;}); if(t)openDetail(t.id); else closeDetail();}} }
               else { toast('Your account was removed by an admin','error'); logout(); }
             }
           }).subscribe();
@@ -1446,21 +1745,50 @@ function loadLocal(){
   try{ var raw=localStorage.getItem(DB_KEY); if(raw){ db=JSON.parse(raw); ensureDefaults(); return; } }catch(e){}
   db=seedDB(); saveDB();
 }
-function saveDB(){
+// Persist the whole state. On Supabase this is a compare-and-swap on the row's
+// `updated` version: if someone else wrote since we last saw the row, the guard
+// matches 0 rows -> we re-read, merge (union, nothing dropped) and retry.
+// Pass {replace:true} for an INTENTIONAL full overwrite (e.g. reset), which
+// skips the guard and the merge.
+function saveDB(opts){
+  var replace = !!(opts && opts.replace);
   if(useSupa && supa){
     setStorageStatus('orange','Saving…');
-    return supa.from('hg_state').update({data:db, updated:new Date().toISOString()}).eq('id',1)
-      .then(function(res){
-        if(res && res.error){ setStorageStatus('red','Save failed'); console.error(res.error); toast('Save failed: '+res.error.message,'error'); }
-        else { setStorageStatus('green','Synced'); }
-      })
-      .catch(function(err){ setStorageStatus('red','Save failed'); console.error(err); });
+    return _persist(replace, 0);
   }
   try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){}
+  return Promise.resolve();
+}
+function _persist(replace, attempt){
+  var newTs = new Date().toISOString();
+  var q = supa.from('hg_state').update({data:db, updated:newTs}).eq('id',1);
+  if(!replace && lastRowUpdated != null) q = q.eq('updated', lastRowUpdated);
+  return q.select('updated').then(function(res){
+    if(res && res.error){ setStorageStatus('red','Save failed'); console.error(res.error); toast('Save failed: '+res.error.message,'error'); return; }
+    var rows = (res && res.data) ? res.data : [];
+    if(rows.length){                                   // our write landed
+      lastRowUpdated = rows[0].updated || newTs;
+      setStorageStatus('green','Synced');
+      return;
+    }
+    // Guard matched 0 rows -> a concurrent write beat us. Re-read, merge, retry.
+    return supa.from('hg_state').select('data,updated').eq('id',1).maybeSingle().then(function(r2){
+      if(!r2 || r2.error || !r2.data || !r2.data.data){ setStorageStatus('red','Save failed'); if(r2&&r2.error)console.error(r2.error); return; }
+      db = mergeState(r2.data.data, db);
+      ensureDefaults();
+      lastRowUpdated = r2.data.updated;
+      _afterMergeRefresh();
+      if(attempt >= 12){                               // extreme contention: write merged state unconditionally (still merged -> no loss)
+        return _persist(true, attempt+1);
+      }
+      return _persist(replace, attempt+1);
+    });
+  }).catch(function(err){ setStorageStatus('red','Save failed'); console.error(err); });
 }
 function resetDemo(){
   if(!confirm('Reset ALL data back to just the Super Admin account? This wipes every user and query.'))return;
-  db=seedDB(); saveDB(); toast('Reset complete — only Super Admin remains','info');
+  _tombstones = { tickets:{}, users:{}, passwordRequests:{}, departments:{} };
+  db=seedDB(); saveDB({replace:true}); toast('Reset complete — only Super Admin remains','info');
   if(me && me.role!=='superadmin'){logout();} else if(me){var still=db.users.find(function(u){return u.id===me.id;}); if(!still){logout();} else {me=still; renderApp();}}
 }
 
@@ -1574,6 +1902,87 @@ function showAssignedPopup(t, msg){
   card.onclick = function(){ card.remove(); if(document.getElementById('screen-app').style.display==='block'){ openDetail(t.id); } };
   wrap.appendChild(card);
   setTimeout(function(){ if(card.parentNode) card.remove(); }, 12000);
+}
+
+// ── Mention notifications (persistent unread inbox + live popup) ──────
+function notifsFor(userId){
+  return (db.notifications||[]).filter(function(n){ return n.uid===userId; })
+    .slice().sort(function(a,b){ return new Date(b.at)-new Date(a.at); });
+}
+function unreadCountFor(userId){
+  return (db.notifications||[]).filter(function(n){ return n.uid===userId && !n.read; }).length;
+}
+// Redraw the sidebar bell + unread badge for the signed-in user.
+function renderNotifBell(){
+  if(!me) return;
+  var badge=document.getElementById('notif-badge'); if(!badge) return;
+  var n=unreadCountFor(me.id);
+  badge.textContent = n>99 ? '99+' : String(n);
+  badge.style.display = n ? 'flex' : 'none';
+}
+function toggleNotifPanel(){
+  var p=document.getElementById('notif-panel'); if(!p) return;
+  var show = p.style.display!=='block';
+  p.style.display = show ? 'block' : 'none';
+  if(show) renderNotifPanel();
+}
+function renderNotifPanel(){
+  var body=document.getElementById('notif-panel-body'); if(!body||!me) return;
+  var list=notifsFor(me.id).slice(0,30);
+  if(!list.length){ body.innerHTML='<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">No mentions yet.</div>'; return; }
+  body.innerHTML=list.map(function(n){
+    var t=db.tickets.find(function(x){return x.id===n.tid;});
+    return '<div class="notif-item'+(n.read?'':' unread')+'" onclick="openNotif(\''+n.id+'\')">'
+      +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:2px">'
+        +(n.read?'':'<span class="notif-dot"></span>')
+        +'<strong style="font-size:12px">'+esc(n.from)+'</strong>'
+        +'<span style="font-size:10px;color:var(--text-muted);margin-left:auto">'+age(n.at)+'</span></div>'
+      +'<div style="font-size:11px;color:var(--text-secondary)">mentioned you'+(n.tid?(' on '+esc(n.tid)):'')+(t?(' — '+esc(t.title)):'')+'</div>'
+      +(n.snippet?'<div style="font-size:11px;color:var(--text-muted);margin-top:2px;font-style:italic">“'+esc(n.snippet)+'”</div>':'')
+      +'</div>';
+  }).join('');
+}
+function openNotif(nid){
+  var n=(db.notifications||[]).find(function(x){return x.id===nid;});
+  if(n && !n.read){ n.read=true; saveDB(); }
+  var p=document.getElementById('notif-panel'); if(p) p.style.display='none';
+  renderNotifBell();
+  if(n && n.tid && db.tickets.find(function(x){return x.id===n.tid;})){
+    if(currentView!=='tickets') nav('tickets');
+    openDetail(n.tid);
+  }
+}
+function markAllNotifRead(){
+  var any=false;
+  (db.notifications||[]).forEach(function(n){ if(n.uid===me.id && !n.read){ n.read=true; any=true; } });
+  if(any) saveDB();
+  renderNotifBell(); renderNotifPanel();
+}
+function showMentionPopup(n){
+  playNotifSound();
+  showBrowserNotif('You were mentioned', (n.from||'Someone')+' mentioned you on '+n.tid);
+  var wrap=document.getElementById('inapp-notifs');
+  if(!wrap){ wrap=document.createElement('div'); wrap.id='inapp-notifs'; wrap.style.cssText='position:fixed;top:60px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:340px'; document.body.appendChild(wrap); }
+  var card=document.createElement('div');
+  card.style.cssText='background:var(--surface-2);border:1px solid var(--blue);border-left:5px solid var(--blue);border-radius:12px;padding:12px 14px;box-shadow:0 8px 30px rgba(0,0,0,.2);animation:slideup .2s ease;cursor:pointer';
+  card.innerHTML='<div style="display:flex;align-items:flex-start;gap:8px">'
+    +'<i class="ti ti-at" style="font-size:22px;color:var(--blue)"></i>'
+    +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Mentioned by '+esc(n.from)+' · '+esc(n.tid)+'</div>'
+      +(n.snippet?'<div style="font-size:12px;line-height:1.3">“'+esc(n.snippet)+'”</div>':'')
+    +'</div>'
+    +'<button class="btn xs" onclick="event.stopPropagation();this.parentElement.parentElement.remove()" style="padding:2px 6px"><i class="ti ti-x"></i></button></div>';
+  card.onclick=function(){ card.remove(); openNotif(n.id); };
+  wrap.appendChild(card);
+  setTimeout(function(){ if(card.parentNode) card.remove(); }, 12000);
+}
+// After a realtime update, pop a card for any NEW unread mention addressed to me.
+function notifyNewMentions(oldNotifs){
+  if(!me) return;
+  var oldIds={}; (oldNotifs||[]).forEach(function(n){ oldIds[n.id]=1; });
+  (db.notifications||[]).forEach(function(n){
+    if(n.uid===me.id && !n.read && !oldIds[n.id]) showMentionPopup(n);
+  });
 }
 
 // Opens Gmail's compose window in a new tab (uses the browser's logged-in Gmail session).
@@ -1904,6 +2313,7 @@ function trackFromSuccess(){
   setTimeout(function(){ var el=document.getElementById('track-id'); if(el){el.value=id; doTrack();} }, 60);
 }
 function doTrack(){
+  try{ sweepAutoClose(); }catch(e){}
   var raw=(document.getElementById('track-id').value||'').trim();
   if(!raw){ toast('Enter a ticket reference','error'); return; }
   // Accept "1023" or "tkt-1023" — normalise to TKT-####
@@ -1919,10 +2329,27 @@ function doTrack(){
   var asg = t.asgn ? userName(t.asgn) : 'Not yet assigned to an individual';
   var lastLog = t.log && t.log.length ? t.log[t.log.length-1] : null;
   var typeLabel = {query:'Query',error:'Error',training:'Training',requirement:'Requirement',request:'Service request',change:'Change request',problem:'Problem',complaint:'Complaint',incident:'Incident'}[t.type] || t.type;
-  var statusExplain = {open:'Received · awaiting first action', 'in-progress':'Actively being worked on', resolved:'Marked resolved — please confirm', closed:'Closed', approved:'Approved', rejected:'Rejected'}[t.st] || t.st;
+  var statusExplain = {open:'Received · awaiting first action', 'in-progress':'Actively being worked on', resolved:'Marked resolved — please confirm below', closed:'Closed', approved:'Approved', rejected:'Rejected'}[t.st] || t.st;
   var attHtml = (t.attachments && t.attachments.length) ? '<div style="margin-top:12px"><strong style="font-size:11px;text-transform:uppercase;color:var(--text-muted)">Attachments</strong><br>'
-    + t.attachments.map(function(a){var s=(typeof a==='string')?a:a.data;return '<a href="'+s+'" target="_blank"><img src="'+s+'" style="max-width:200px;border-radius:6px;margin-top:6px;border:1px solid var(--border)"></a>';}).join(' ') + '</div>' : '';
+    + t.attachments.map(function(a,i){var s=(typeof a==='string')?a:a.data;var fn=attachmentFilename(t.id,'attachment',i,s);return '<span style="display:inline-block;margin:6px 8px 0 0;vertical-align:top"><a href="'+s+'" target="_blank"><img src="'+s+'" style="max-width:200px;border-radius:6px;border:1px solid var(--border);display:block"></a>'+downloadLink(s,fn,'Download')+'</span>';}).join('') + '</div>' : '';
+  // Requester confirmation panel — only while awaiting sign-off (status "resolved").
+  var confirmHtml = '';
+  if(t.st==='resolved'){
+    var daysLeft = t.resolvedAt ? Math.max(0, AUTO_CLOSE_DAYS - Math.floor((Date.now()-new Date(t.resolvedAt).getTime())/(24*3600*1000))) : AUTO_CLOSE_DAYS;
+    confirmHtml = '<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:12px;padding:16px;margin-bottom:14px">'
+      +'<div style="font-size:14px;font-weight:700;margin-bottom:6px"><i class="ti ti-help-circle" style="color:var(--amber-text)"></i> The team marked this resolved — is it fixed for you?</div>'
+      +'<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Please confirm so we can close it. If we don\'t hear back, it will auto-close in about <strong>'+daysLeft+' day'+(daysLeft===1?'':'s')+'</strong>.</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        +'<button class="btn primary" onclick="confirmResolution(\''+esc(t.id)+'\')"><i class="ti ti-check"></i> Yes, it\'s resolved — close it</button>'
+        +'<button class="btn danger" onclick="rejectResolution(\''+esc(t.id)+'\')"><i class="ti ti-x"></i> No, still an issue</button>'
+      +'</div></div>';
+  } else if(t.st==='closed' && t.closedReason==='confirmed'){
+    confirmHtml = '<div class="info-box green" style="margin-bottom:14px"><i class="ti ti-circle-check"></i> You confirmed this was resolved. Thank you!</div>';
+  } else if(t.st==='closed' && t.closedReason==='timeout'){
+    confirmHtml = '<div class="info-box" style="margin-bottom:14px;background:var(--gray-bg);color:var(--gray-text)"><i class="ti ti-clock"></i> Auto-closed after '+AUTO_CLOSE_DAYS+' days without a confirmation. If it\'s still an issue, please raise a new complaint.</div>';
+  }
   out.innerHTML=''
+    +confirmHtml
     +'<div style="background:var(--surface-1);border-radius:12px;padding:16px;margin-bottom:14px">'
       +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
         +'<span style="font-family:monospace;font-size:14px;font-weight:700;color:var(--blue)">'+esc(t.id)+'</span>'
@@ -1946,7 +2373,7 @@ function doTrack(){
       +(lastLog ? '<div style="font-size:12px;color:var(--text-secondary)"><strong>Last activity:</strong> '+esc(lastLog.msg)+' <span style="color:var(--text-muted)">('+age(lastLog.at)+' by '+esc(lastLog.user)+')</span></div>' : '')
     +'</div>'
     +'<div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Full activity timeline ('+((t.log||[]).length)+')</div>'
-    +'<div class="timeline">'+buildTimeline(t.log||[])+'</div>';
+    +'<div class="timeline">'+buildTimeline(t.log||[], t.id)+'</div>';
 }
 
 function resetComplaint(){
@@ -2169,6 +2596,7 @@ function renderApp(){
   document.getElementById('chip-unassigned').style.display=(me.role==='user')?'none':'inline-flex';
 
   renderNav();
+  renderNotifBell();
   currentView='dashboard';
   nav('dashboard');
 }
@@ -2206,6 +2634,7 @@ function renderDashboardCharts(vt){
 
 // ─── Dashboard ───────────────────────────────────────────
 function renderDashboard(){
+  try{ sweepAutoClose(); }catch(e){}
   var vt=visibleTickets();
   var open=vt.filter(function(t){return t.st==='open';}).length;
   var inp=vt.filter(function(t){return t.st==='in-progress';}).length;
@@ -3252,6 +3681,7 @@ function removeDepartment(name){
   var msg='Remove department "'+name+'"?';
   if(usersHere||ticketsHere) msg+='\n\nThis department is referenced by '+usersHere+' user(s) and '+ticketsHere+' query/queries. They will keep the label but you won\'t be able to pick "'+name+'" for new items. Continue?';
   if(!confirm(msg))return;
+  _tombstones.departments[name]=true;
   db.departments=(db.departments||[]).filter(function(d){return d.name!==name;});
   saveDB(); renderDepartmentChips(); toast('Removed "'+name+'"','info');
 }
@@ -3304,7 +3734,11 @@ function openDetail(id){
     attWrap.style.display='block';
     attBody.innerHTML=t.attachments.map(function(a,i){
       var src=(typeof a==='string')?a:a.data;
-      return '<a href="'+src+'" target="_blank" title="Click to open full size"><img src="'+src+'" style="max-width:100%;border-radius:8px;margin-bottom:6px;display:block;border:1px solid var(--border)"></a>';
+      var fname=attachmentFilename(t.id, 'attachment', i, src);
+      return '<div style="margin-bottom:10px">'
+        +'<a href="'+src+'" target="_blank" title="Click to open full size"><img src="'+src+'" style="max-width:100%;border-radius:8px;display:block;border:1px solid var(--border)"></a>'
+        +'<div style="display:flex;align-items:center;gap:8px;margin-top:4px">'+downloadLink(src, fname, 'Download')
+        +'<span style="font-size:10px;color:var(--text-muted)">'+esc(fname)+'</span></div></div>';
     }).join('');
   } else {
     attWrap.style.display='none';
@@ -3342,20 +3776,22 @@ function openDetail(id){
     return '<button class="btn sm'+cls+'" onclick="setSt(\''+s[0]+'\')">'+s[1]+'</button>';
   }).join('');
 
-  document.getElementById('dp-timeline').innerHTML=buildTimeline(t.log);
+  document.getElementById('dp-timeline').innerHTML=buildTimeline(t.log, t.id);
   document.getElementById('comment-input').value='';
   document.getElementById('detail-panel').classList.remove('hidden');
 }
-function buildTimeline(log){
+function buildTimeline(log, ticketId){
   return log.slice().reverse().map(function(l){
     var isComment=l.type==='comment';
     var img = l.image
       ? '<a href="'+l.image+'" target="_blank" title="Click to open full size"><img src="'+l.image+'" style="max-width:100%;max-height:220px;border-radius:6px;margin-top:6px;display:block;border:1px solid var(--border);cursor:zoom-in"></a>'
+        + '<div>'+downloadLink(l.image, attachmentFilename(ticketId, 'comment-image', null, l.image), 'Download image')+'</div>'
       : '';
+    var text = isComment ? renderCommentText(l.msg, l.mentions) : esc(l.msg);
     return '<div class="tl-item"><div class="tl-avatar">'+initials(l.user)+'</div>'
       +'<div class="tl-bubble'+(isComment?' comment':'')+'">'
       +'<div class="tl-bubble-header"><span class="tl-name">'+esc(l.user)+'</span><span class="tl-time">'+age(l.at)+'</span></div>'
-      +'<div class="tl-text">'+esc(l.msg)+'</div>'+img+'</div></div>';
+      +'<div class="tl-text">'+text+'</div>'+img+'</div></div>';
   }).join('');
 }
 
@@ -3392,35 +3828,139 @@ function clearCommentImagePreview(){
   var el=document.getElementById('comment-image'); if(el)el.value='';
   var pv=document.getElementById('comment-image-preview'); if(pv)pv.innerHTML='';
 }
+
+// ── @mention autocomplete on the comment box ──────────────
+var _mention = { open:false, start:-1, items:[], sel:0 };
+function _mentionCandidates(query){
+  var q=(query||'').toLowerCase();
+  var seen={}, out=[];
+  (db.users||[]).forEach(function(u){
+    if(u.id===(me&&me.id)) return;           // don't suggest yourself
+    var hay=((u.name||'')+' '+(u.username||'')).toLowerCase();
+    if(!q || hay.indexOf(q)!==-1){ if(!seen[u.id]){ seen[u.id]=1; out.push(u); } }
+  });
+  return out.slice(0,6);
+}
+function onCommentInput(){
+  var ta=document.getElementById('comment-input'); if(!ta) return;
+  var pos=ta.selectionStart, text=ta.value.slice(0,pos);
+  var m=/@([\w .'-]*)$/.exec(text);           // an @token running up to the cursor
+  if(!m){ hideMentionDropdown(); return; }
+  _mention.start = pos - m[0].length;          // index of the '@'
+  _mention.items = _mentionCandidates(m[1]);
+  _mention.sel = 0;
+  if(!_mention.items.length){ hideMentionDropdown(); return; }
+  _mention.open = true;
+  renderMentionDropdown();
+}
+function renderMentionDropdown(){
+  var dd=document.getElementById('mention-dropdown'); if(!dd) return;
+  dd.innerHTML=_mention.items.map(function(u,i){
+    return '<div class="mention-opt'+(i===_mention.sel?' active':'')+'" onmousedown="event.preventDefault();pickMention('+i+')">'
+      +'<strong>'+esc(u.name)+'</strong> <span style="color:var(--text-muted);font-size:11px">@'+esc(u.username||'')+' · '+esc(u.dept||u.role||'')+'</span></div>';
+  }).join('');
+  dd.style.display='block';
+}
+function onCommentKeydown(e){
+  if(!_mention.open) return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); _mention.sel=(_mention.sel+1)%_mention.items.length; renderMentionDropdown(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); _mention.sel=(_mention.sel-1+_mention.items.length)%_mention.items.length; renderMentionDropdown(); }
+  else if(e.key==='Enter'||e.key==='Tab'){ e.preventDefault(); pickMention(_mention.sel); }
+  else if(e.key==='Escape'){ hideMentionDropdown(); }
+}
+function pickMention(i){
+  var ta=document.getElementById('comment-input'); var u=_mention.items[i]; if(!ta||!u) return;
+  var pos=ta.selectionStart;
+  var before=ta.value.slice(0, _mention.start);
+  var after=ta.value.slice(pos);
+  var insert='@'+(u.name||u.username)+' ';
+  ta.value=before+insert+after;
+  var caret=(before+insert).length;
+  ta.setSelectionRange(caret, caret);
+  hideMentionDropdown();
+  ta.focus();
+}
+function hideMentionDropdown(){
+  _mention.open=false; _mention.items=[]; _mention.sel=0;
+  var dd=document.getElementById('mention-dropdown'); if(dd){ dd.style.display='none'; dd.innerHTML=''; }
+}
 function addComment(){
+  hideMentionDropdown();
   var val=document.getElementById('comment-input').value.trim();
   if(!val && !_commentImageData){ toast('Type a comment or attach an image first','error'); return; }
   if(!activeTicket)return;
-  var entry={type:'comment', msg:val || '(image attached)', user:me.name, at:new Date().toISOString()};
+  var now=new Date().toISOString();
+  var mentions = parseMentions(val);
+  var entry={type:'comment', msg:val || '(image attached)', user:me.name, at:now};
+  if(mentions.ids.length) entry.mentions = mentions.ids;
   if(_commentImageData) entry.image = _commentImageData;
   activeTicket.log.push(entry);
-  activeTicket.updated=new Date().toISOString();
+  activeTicket.updated=now;
+  // Persist a notification for each mentioned user (except myself) so it shows
+  // in their bell even if they were offline when it was posted.
+  var snippet = (val||'').slice(0,140);
+  mentions.ids.forEach(function(uid2){
+    if(uid2===me.id) return;
+    db.notifications.push({ id:uid('NOTIF'), uid:uid2, from:me.name, tid:activeTicket.id, snippet:snippet, at:now, read:false });
+  });
   saveDB();
   document.getElementById('comment-input').value='';
   clearCommentImagePreview();
-  document.getElementById('dp-timeline').innerHTML=buildTimeline(activeTicket.log);
-  toast(entry.image?'Comment + image posted':'Comment added','success');
+  document.getElementById('dp-timeline').innerHTML=buildTimeline(activeTicket.log, activeTicket.id);
+  var mn = mentions.ids.filter(function(i){return i!==me.id;}).length;
+  toast(mn ? ('Comment posted · '+mn+' person'+(mn>1?'s':'')+' notified') : (entry.image?'Comment + image posted':'Comment added'),'success');
 }
 function closeDetail(){var p=document.getElementById('detail-panel');if(p)p.classList.add('hidden');activeTicket=null;clearCommentImagePreview&&clearCommentImagePreview();}
 function setSt(st){
   if(!activeTicket)return;
   var prev=activeTicket.st; if(prev===st){return;}
   var tRef=activeTicket;
-  tRef.st=st; tRef.updated=new Date().toISOString();
-  tRef.log.push({type:'status',msg:'Status changed from '+prev+' to '+st,user:me.name,at:new Date().toISOString()});
+  var now=new Date().toISOString();
+  tRef.st=st; tRef.updated=now;
+  // Resolution-confirmation flow: "resolved" = awaiting the requester's sign-off.
+  if(st==='resolved'){
+    tRef.resolvedAt=now; tRef.resolvedBy=me.name; delete tRef.closedReason; delete tRef.closedAt;
+    tRef.log.push({type:'status',msg:'Marked resolved by '+me.name+' — awaiting requester confirmation',user:me.name,at:now});
+  } else if(st==='closed'){
+    // Direct admin close = force-close override (bypasses requester confirmation).
+    tRef.closedReason='admin'; tRef.closedAt=now;
+    tRef.log.push({type:'status',msg:'Closed by '+me.name+' (admin override)',user:me.name,at:now});
+  } else {
+    if(prev==='resolved'){ delete tRef.resolvedAt; delete tRef.resolvedBy; }
+    tRef.log.push({type:'status',msg:'Status changed from '+prev+' to '+st,user:me.name,at:now});
+  }
   saveDB();
-  openDetail(tRef.id); refreshCurrent(); toast('Updated to '+st,'success');
+  openDetail(tRef.id); refreshCurrent();
+  toast(st==='resolved' ? 'Marked resolved — requester must confirm' : 'Updated to '+st,'success');
   // Auto-offer email to requester when a ticket is resolved or closed
   if((st==='resolved' || st==='closed') && tRef.reqEmail){
     var label = st==='resolved' ? 'resolved' : 'closed';
-    var ok = confirm('Ticket '+tRef.id+' marked as '+label+'.\n\nEmail '+tRef.req+' ('+tRef.reqEmail+') to let them know?\n(Opens your default email app with a message pre-filled.)');
+    var extra = st==='resolved' ? '\n\nThey can confirm it is resolved from the public "Track ticket" page.' : '';
+    var ok = confirm('Ticket '+tRef.id+' marked as '+label+'.\n\nEmail '+tRef.req+' ('+tRef.reqEmail+') to let them know?'+extra+'\n(Opens your email with a message pre-filled.)');
     if(ok) notifyRequesterOfResolution(tRef.id, label);
   }
+}
+// Requester confirms the resolution from the public Track page -> truly closed.
+function confirmResolution(ticketId){
+  var t=db.tickets.find(function(x){return x.id===ticketId;}); if(!t) return;
+  if(t.st!=='resolved'){ toast('This ticket is not awaiting confirmation','info'); return; }
+  var now=new Date().toISOString();
+  t.st='closed'; t.closedReason='confirmed'; t.confirmedAt=now; t.closedAt=now; t.updated=now;
+  t.log=t.log||[]; t.log.push({type:'status',msg:'Requester confirmed the issue is resolved — ticket closed',user:t.req||'Requester',at:now});
+  saveDB();
+  toast('Thank you — ticket confirmed and closed','success');
+  doTrack();
+}
+// Requester says it's NOT resolved from the Track page -> reopen to in-progress.
+function rejectResolution(ticketId){
+  var t=db.tickets.find(function(x){return x.id===ticketId;}); if(!t) return;
+  if(t.st!=='resolved'){ toast('This ticket is not awaiting confirmation','info'); return; }
+  var now=new Date().toISOString();
+  t.st='in-progress'; delete t.resolvedAt; delete t.resolvedBy; t.updated=now;
+  t.log=t.log||[]; t.log.push({type:'status',msg:'Requester reported the issue is NOT resolved — reopened',user:t.req||'Requester',at:now});
+  saveDB();
+  toast('Reopened — the team has been notified','info');
+  doTrack();
 }
 // Compose a mailto notification to the ticket's requester informing them of resolution
 function notifyRequesterOfResolution(ticketId, statusLabel){
@@ -3533,10 +4073,17 @@ function saveTicket(){
     if(t.st!==document.getElementById('f-status').value)changes.push('Status → '+document.getElementById('f-status').value);
     if(t.pri!==document.getElementById('f-priority').value)changes.push('Priority → '+document.getElementById('f-priority').value);
     if((t.asgn||'')!==(asgn||''))changes.push('Assigned → '+(asgn?userName(asgn):'Unassigned'));
+    var newSt=document.getElementById('f-status').value, prevSt=t.st;
     t.type=document.getElementById('f-type').value; t.pri=document.getElementById('f-priority').value;
     t.title=title; t.desc=document.getElementById('f-desc').value;
     t.req=document.getElementById('f-req').value||t.req; t.dept=document.getElementById('f-dept').value;
-    t.asgn=asgn; t.managerId=mgrId; t.st=document.getElementById('f-status').value; t.updated=now;
+    t.asgn=asgn; t.managerId=mgrId; t.st=newSt; t.updated=now;
+    // Keep resolution-confirmation metadata consistent when status is changed here.
+    if(newSt!==prevSt){
+      if(newSt==='resolved'){ t.resolvedAt=now; t.resolvedBy=me.name; delete t.closedReason; delete t.closedAt; }
+      else if(newSt==='closed'){ t.closedReason=t.closedReason||'admin'; t.closedAt=now; }
+      else { delete t.resolvedAt; delete t.resolvedBy; delete t.closedReason; delete t.closedAt; }
+    }
     if(changes.length)t.log.push({type:'edit',msg:'Edited by '+me.name+': '+changes.join(', '),user:me.name,at:now});
     toast('Ticket updated','success');
   } else {
@@ -3563,6 +4110,7 @@ function asgnManager(asgn){
 function deleteTicket(id){
   if(!isAdmin(me)){toast('Only Admins can delete tickets','error');return;}
   if(!confirm('Delete ticket '+id+'? This cannot be undone.'))return;
+  _tombstones.tickets[id]=true;
   db.tickets=db.tickets.filter(function(t){return t.id!==id;});
   saveDB();
   if(activeTicket&&activeTicket.id===id)closeDetail();
@@ -3744,6 +4292,7 @@ function deleteUser(id){
   // unassign tickets and orphan reports
   db.tickets.forEach(function(t){if(t.asgn===id){t.asgn=null;t.managerId=asgnManager(null);t.log.push({type:'assign',msg:'Unassigned (account removed) by '+me.name,user:me.name,at:new Date().toISOString()});}});
   if(u.role==='manager')db.users.forEach(function(x){if(x.managerId===id)x.managerId=null;});
+  _tombstones.users[id]=true;
   db.users=db.users.filter(function(x){return x.id!==id;});
   saveDB(); renderNav(); renderUsers(); toast('User deleted','info');
 }
@@ -3785,7 +4334,7 @@ function today(){return new Date().toISOString().slice(0,10);}
 // ═══════════════════════════════════════════════════════
 //  UTIL
 // ═══════════════════════════════════════════════════════
-function refreshCurrent(){ renderNav(); nav(currentView); }
+function refreshCurrent(){ renderNav(); renderNotifBell(); nav(currentView); }
 function closeModal(id){document.getElementById(id).style.display='none';}
 function toast(msg,type){
   var wrap=document.getElementById('toasts');
@@ -3824,6 +4373,9 @@ window.addEventListener('storage',function(e){
     if(found){ me=found; showScreen('app'); renderApp(); }
     else { showScreen('landing'); }   // session invalid → land on landing, not loading
     updateStorageIndicator();
+    try{ sweepAutoClose(); }catch(e){ console.error('auto-close sweep failed', e); }
+    // Re-check the 7-day auto-close window hourly while the tab stays open.
+    setInterval(function(){ try{ if(sweepAutoClose() && me) refreshCurrent(); }catch(e){} }, 3600000);
   }).catch(function(err){
     console.error('Init failed:', err);
     showScreen('landing');
@@ -3885,8 +4437,11 @@ function renderStatusPopover(){
 document.addEventListener('click', function(e){
   var pop=document.getElementById('status-popover');
   var pill=document.getElementById('status-pill');
-  if(!pop||!pill)return;
-  if(pop.style.display==='block' && !pop.contains(e.target) && !pill.contains(e.target)) pop.style.display='none';
+  if(pop && pill && pop.style.display==='block' && !pop.contains(e.target) && !pill.contains(e.target)) pop.style.display='none';
+  // Same for the mentions notification panel
+  var np=document.getElementById('notif-panel');
+  var bell=document.querySelector('.notif-bell');
+  if(np && bell && np.style.display==='block' && !np.contains(e.target) && !bell.contains(e.target)) np.style.display='none';
 });
 </script>
 </body>
