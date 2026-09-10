@@ -1633,6 +1633,42 @@ function renderCommentText(msg, mentionIds){
   });
   return safe;
 }
+// Resolve a ticket's Requester (a free-text name, maybe with an email) to a user
+// ACCOUNT, so we can reach them via the bell. Prefer an email match (reliable),
+// fall back to an exact name match. Returns a user id, or null if the requester
+// has no account (e.g. a public complaint submitter) — then there's nothing to ring.
+function requesterUserId(ticket){
+  if(!ticket) return null;
+  var users = db && db.users ? db.users : [];
+  if(ticket.reqEmail){
+    var byEmail = users.find(function(u){ return u.email && u.email.toLowerCase()===String(ticket.reqEmail).toLowerCase(); });
+    if(byEmail) return byEmail.id;
+  }
+  if(ticket.req){
+    var byName = users.find(function(u){ return u.name===ticket.req; });
+    if(byName) return byName.id;
+  }
+  return null;
+}
+// Who should be notified for a comment. ONLY when the comment actually contains
+// an @mention: the explicitly-tagged users PLUS the ticket's Requester (looped
+// in), minus the comment's author, de-duplicated. Returns [{uid, kind}] where
+// kind is 'mention' (tagged by name) or 'requester' (auto-included). Empty array
+// when there are no @mentions — so mention-free comments notify no one.
+function mentionRecipients(ticket, mentionIds, authorId){
+  mentionIds = mentionIds || [];
+  if(!mentionIds.length) return [];
+  var kindById = {}, order = [];
+  mentionIds.forEach(function(id){
+    if(!id || id===authorId || kindById[id]) return;
+    kindById[id] = 'mention'; order.push(id);      // directly tagged
+  });
+  var reqId = requesterUserId(ticket);
+  if(reqId && reqId!==authorId && !kindById[reqId]){ // requester, unless author or already tagged
+    kindById[reqId] = 'requester'; order.push(reqId);
+  }
+  return order.map(function(id){ return { uid:id, kind:kindById[id] }; });
+}
 
 // ── Attachments (download) ─────────────────────────────
 function _dataUrlMime(dataUrl){
@@ -1905,6 +1941,8 @@ function showAssignedPopup(t, msg){
 }
 
 // ── Mention notifications (persistent unread inbox + live popup) ──────
+// A notification is either a direct @mention or a requester loop-in.
+function notifVerb(n){ return (n && n.kind==='requester') ? 'new comment on your ticket' : 'mentioned you'; }
 function notifsFor(userId){
   return (db.notifications||[]).filter(function(n){ return n.uid===userId; })
     .slice().sort(function(a,b){ return new Date(b.at)-new Date(a.at); });
@@ -1937,7 +1975,7 @@ function renderNotifPanel(){
         +(n.read?'':'<span class="notif-dot"></span>')
         +'<strong style="font-size:12px">'+esc(n.from)+'</strong>'
         +'<span style="font-size:10px;color:var(--text-muted);margin-left:auto">'+age(n.at)+'</span></div>'
-      +'<div style="font-size:11px;color:var(--text-secondary)">mentioned you'+(n.tid?(' on '+esc(n.tid)):'')+(t?(' — '+esc(t.title)):'')+'</div>'
+      +'<div style="font-size:11px;color:var(--text-secondary)">'+notifVerb(n)+(n.tid?(' on '+esc(n.tid)):'')+(t?(' — '+esc(t.title)):'')+'</div>'
       +(n.snippet?'<div style="font-size:11px;color:var(--text-muted);margin-top:2px;font-style:italic">“'+esc(n.snippet)+'”</div>':'')
       +'</div>';
   }).join('');
@@ -1959,8 +1997,9 @@ function markAllNotifRead(){
   renderNotifBell(); renderNotifPanel();
 }
 function showMentionPopup(n){
+  var isReq = n && n.kind==='requester';
   playNotifSound();
-  showBrowserNotif('You were mentioned', (n.from||'Someone')+' mentioned you on '+n.tid);
+  showBrowserNotif(isReq?'New comment on your ticket':'You were mentioned', (n.from||'Someone')+' '+notifVerb(n)+' '+(isReq?'':'on ')+n.tid);
   var wrap=document.getElementById('inapp-notifs');
   if(!wrap){ wrap=document.createElement('div'); wrap.id='inapp-notifs'; wrap.style.cssText='position:fixed;top:60px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:340px'; document.body.appendChild(wrap); }
   var card=document.createElement('div');
@@ -1968,7 +2007,7 @@ function showMentionPopup(n){
   card.innerHTML='<div style="display:flex;align-items:flex-start;gap:8px">'
     +'<i class="ti ti-at" style="font-size:22px;color:var(--blue)"></i>'
     +'<div style="flex:1;min-width:0">'
-      +'<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Mentioned by '+esc(n.from)+' · '+esc(n.tid)+'</div>'
+      +'<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">'+(isReq?'New comment':'Mentioned by '+esc(n.from))+' · '+esc(n.tid)+'</div>'
       +(n.snippet?'<div style="font-size:12px;line-height:1.3">“'+esc(n.snippet)+'”</div>':'')
     +'</div>'
     +'<button class="btn xs" onclick="event.stopPropagation();this.parentElement.parentElement.remove()" style="padding:2px 6px"><i class="ti ti-x"></i></button></div>';
@@ -3896,18 +3935,19 @@ function addComment(){
   if(_commentImageData) entry.image = _commentImageData;
   activeTicket.log.push(entry);
   activeTicket.updated=now;
-  // Persist a notification for each mentioned user (except myself) so it shows
-  // in their bell even if they were offline when it was posted.
+  // When a comment uses @mentions, notify the tagged people AND loop in the
+  // ticket's Requester (via the same bell), de-duplicated and never the author.
+  // Comments with no @mentions notify no one.
   var snippet = (val||'').slice(0,140);
-  mentions.ids.forEach(function(uid2){
-    if(uid2===me.id) return;
-    db.notifications.push({ id:uid('NOTIF'), uid:uid2, from:me.name, tid:activeTicket.id, snippet:snippet, at:now, read:false });
+  var recips = mentionRecipients(activeTicket, mentions.ids, me.id);
+  recips.forEach(function(r){
+    db.notifications.push({ id:uid('NOTIF'), uid:r.uid, from:me.name, tid:activeTicket.id, snippet:snippet, at:now, read:false, kind:r.kind });
   });
   saveDB();
   document.getElementById('comment-input').value='';
   clearCommentImagePreview();
   document.getElementById('dp-timeline').innerHTML=buildTimeline(activeTicket.log, activeTicket.id);
-  var mn = mentions.ids.filter(function(i){return i!==me.id;}).length;
+  var mn = recips.length;
   toast(mn ? ('Comment posted · '+mn+' person'+(mn>1?'s':'')+' notified') : (entry.image?'Comment + image posted':'Comment added'),'success');
 }
 function closeDetail(){var p=document.getElementById('detail-panel');if(p)p.classList.add('hidden');activeTicket=null;clearCommentImagePreview&&clearCommentImagePreview();}
