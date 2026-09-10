@@ -16,17 +16,17 @@ Role-based IT helpdesk for Homeland Group — Super Admin, Managers, Users, and 
    Browser (any device)
          │
          ▼
-   Vercel  ← serves index.html  (free static hosting)
+   GitHub Pages  ← serves index.html  (free static hosting)
          │
          ▼
    Supabase  ← stores shared data + real-time sync  (free tier)
 ```
 
-- **GitHub** holds the source code.
-- **Vercel** watches GitHub and re-deploys `index.html` every time you push.
+- **GitHub** holds the source code **and** serves the site via GitHub Pages.
+- **GitHub Pages** re-publishes `index.html` every time you push to `main`.
 - **Supabase** is the database — one shared source of truth for every device.
 
-You'll do the setup **once**. After that, every change is just: edit → commit → push → live in ~30 seconds.
+You'll do the setup **once**. After that, every change is just: edit → commit → push → live in about a minute (GitHub Pages can take a few minutes extra to clear its CDN cache).
 
 ---
 
@@ -71,13 +71,14 @@ Keep both handy for Step 4.
 
 ---
 
-## Step 3 — Deploy on Vercel (once, ~1 minute)
+## Step 3 — Deploy on GitHub Pages (once, ~1 minute)
 
-1. Sign in at [vercel.com](https://vercel.com) with your GitHub account.
-2. **Add New… → Project** → find **Homeland-Helpdesk** in the list → **Import**.
-3. On the config screen, leave everything as default (Vercel auto-detects the static HTML).
-4. Click **Deploy**.
-5. After ~30 seconds you get a URL like `https://homeland-helpdesk.vercel.app`.
+1. On GitHub, open your repository → **Settings** → **Pages** (left sidebar).
+2. Under **Build and deployment → Source**, choose **Deploy from a branch**.
+3. Set **Branch** to `main` and the folder to **/ (root)**, then click **Save**.
+4. Wait ~1 minute. GitHub Pages publishes your site at
+   `https://<your-username>.github.io/<repo-name>/`
+   (for this project it's <https://dme77.github.io/homeland-helpdesk/>).
 
 Open that URL. The login screen loads. You can already sign in with `Vivek` / `Homeland@77` — but data is still local per-browser. Step 4 turns on the shared database.
 
@@ -102,7 +103,7 @@ Open that URL. The login screen loads. You can already sign in with `Vivek` / `H
    git commit -m "Connect Supabase backend"
    git push
    ```
-5. Vercel auto-redeploys in ~30 seconds. Refresh your Vercel URL.
+5. GitHub Pages re-publishes in about a minute. Refresh your GitHub Pages URL (a hard refresh clears any cached copy).
 
 The sync bar at the top of the app should now show a green **"Connected to Supabase — data syncs across all devices"**. Log in on your phone, on a colleague's laptop, from anywhere — everyone sees the same live data.
 
@@ -131,7 +132,7 @@ git commit -m "what you changed"
 git push
 ```
 
-Vercel redeploys automatically. No further Supabase changes needed unless you're evolving the database schema.
+GitHub Pages republishes automatically. No further Supabase changes needed unless you're evolving the database schema.
 
 ---
 
